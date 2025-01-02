@@ -1,0 +1,207 @@
+import random
+
+from "item" import Item
+from "sprite" import Sprite
+from "arrow" import Arrow
+from "enemy" import Enemy
+
+import "level" as level
+
+export class Weapon : Item
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'weapon'
+        self.isAttacking = false
+        self.target = nil
+    }
+
+    function drop(x, y)
+    {
+        self.x = x
+        self.y = y
+        self.isAttacking = false
+        level.addEntity(self)
+        level.addWorld(self)
+    }
+
+    function loadSprite(target)
+    {
+        const path = "asset/character/${target.name}_${self.name}.aseprite"
+        const sprite = Sprite.new(path)
+        self.sprite = sprite
+        self.target = target
+        self.loadEvents()
+        return sprite
+    }
+    
+    function loadEvents() { }
+}
+
+function filterTarget(item, other)
+{
+    if item is Enemy
+    {
+        return true
+    }
+}
+
+export class Sword : Weapon
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.kind = 'melee'
+        self.attacks = ['attack1', 'attack2']
+        self.state = 'none'
+        self.speed = 0.2
+        self.sound = micro.Source.fromData(micro.Data.fromFile("sound/slice.ogg"))
+    }
+
+    function loadEvents()
+    {
+        function attack()
+        {
+            self.isAttacking = false
+        }
+
+        self.sprite.onTagEnd('attack1', attack)
+        self.sprite.onTagEnd('attack2', attack)
+
+        function hit(tag)
+        {
+            const world = level.getWorld()
+            var x1, y1, x2, y2
+            if self.target.sx == -1
+            {
+                x1 = self.target.x
+                y1 = self.target.y + 2
+                x2 = self.target.x - 14
+                y2 = self.target.y + 2
+            }
+            else
+            {
+                x1 = self.target.x + 4
+                y1 = self.target.y + 2
+                x2 = self.target.x + 14
+                y2 = self.target.y + 2
+            }
+            self.sound.play()
+            const res = world.querySegment(x1, y1, x2, y2, filterTarget)
+            if res.len > 0
+            {
+                const other = res[0]['item']
+                if other is Enemy
+                {
+                    other.hit(1, self.target.sx)
+                }
+            }
+        }
+
+        self.sprite.onFrame(15, hit)
+        self.sprite.onFrame(18, hit)
+        self.sprite.onFrame(22, hit)
+    }
+
+    function attack()
+    {
+        self.isAttacking = true
+        self.state = random.choice(self.attacks)
+    }
+}
+
+export class Axe : Weapon
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.kind = 'melee'
+        self.attacks = ['attack1', 'attack2']
+        self.state = 'attack1'
+        self.speed = 1
+    }
+
+    function loadEvents()
+    {
+        function attack()
+        {
+            self.isAttacking = false
+        }
+
+        self.sprite.onTagEnd('attack1', attack)
+        self.sprite.onTagEnd('attack2', attack)
+    }
+
+    function attack()
+    {
+        self.isAttacking = true
+        self.state = random.choice(self.attacks)
+    }
+}
+
+export class Bow : Weapon
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.kind = 'range'
+        // 'charge_arrow', 'attack_arrow', 'change_no_arrow', 'attack_no_arrow'
+        self.state = 'charge_arrow'
+        self.isActive = false
+        self.arrows = random.range(0, 20)
+        self.speed = 1
+    }
+
+    function loadEvents()
+    {
+        self.sprite.onFrame(19, function(tag) {
+            assert(tag == 'attack_arrow')
+            if self.arrows > 0
+            {
+                const px = self.target.x - 4
+                const py = self.target.y - 3
+                const arrow = Arrow.new(px, py, "arrow", self.target.sx)
+                arrow.shoot()
+                self.arrows -= 1
+            }
+        })
+
+        function charge()
+        {
+            if self.arrows > 0
+            {
+                self.state = 'attack_arrow'
+            }
+            else
+            {
+                self.state = 'attack_no_arrow'
+            }
+        }
+
+        self.sprite.onTagEnd('charge_arrow', charge)
+        self.sprite.onTagEnd('charge_no_arrow', charge)
+
+        function attack()
+        {
+            self.isAttacking = false
+        }
+
+        self.sprite.onTagEnd('attack_arrow', attack)
+        self.sprite.onTagEnd('attack_no_arrow', attack)
+    }
+    
+    function attack()
+    {
+        self.isAttacking = true
+
+        if self.arrows > 0
+        {
+            self.state = 'charge_arrow'
+        }
+        else
+        {
+            self.state = 'charge_no_arrow'
+        }
+    }
+}

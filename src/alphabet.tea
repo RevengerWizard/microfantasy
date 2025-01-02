@@ -1,0 +1,94 @@
+const N = 24
+const COLS = 6
+const GAP = 8
+
+const alphabet = []
+const bitmaps = []
+
+from "rune" import Rune, WIDTH, HEIGHT
+
+function create()
+{
+    for const i in 0..N
+    {
+        var rune
+        do
+        {
+            rune = Rune.new()
+        }
+        while not addRune(rune);
+        alphabet.add(rune)
+    }
+
+    for const r in alphabet
+    {
+        bitmaps.add(r.getBitmap())
+    }
+}
+
+import math, random
+
+function addRune(rune)
+{
+    if not rune.isSymmetric() and random.random() < 0.9
+    {
+        return false
+    }
+
+    const mirrX = rune.mirrorX()
+    const mirrY = rune.mirrorY()
+    
+    for const r in alphabet
+    {
+        if rune.diff(r) < 5
+        {
+            return false
+        }
+
+        if not rune.hSym and r.diff(mirrX) < 3
+        {
+            return false
+        }
+        
+        if not rune.vSym and r.diff(mirrY) < 3
+        {
+            return false
+        }
+        
+        if not rune.vSym and not rune.hSym and r.diff(rune.rotate180()) < 1
+        {
+            return false
+        }
+    }  
+    return true
+}
+
+function replace(idx)
+{
+    const r = alphabet[idx]
+    var rune
+    do
+    {
+        rune = Rune.new()
+    }
+    while not addRune(rune);
+    alphabet[idx] = rune
+    bitmaps[idx] = rune.getBitmap()
+}
+
+function draw(offx=0, offy=0)
+{
+    var x, y
+    for var i = 0; i < alphabet.len; i++
+    {
+        const rune = alphabet[i]
+        const bm = bitmaps[i]
+        x = (i % COLS) * (WIDTH + GAP)
+        y = math.floor(i / COLS) * (HEIGHT + GAP)
+        micro.gfx.draw(bm, x + offx, y + offy)
+    }
+}
+
+export {
+    create, draw, replace
+}

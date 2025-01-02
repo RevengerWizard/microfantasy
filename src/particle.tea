@@ -1,0 +1,207 @@
+import random, math
+
+export class Particle
+{
+    new(posX, posY, velX, velY, life, img, textureDimensions, size, rotationSpeed, fadeInTime, fadeOutTime)
+    {
+        self.position = {x = posX, y = posY}
+        self.velocity = {x = velX, y = velY}
+        self.lifetime = life
+        self.initialLifetime = life
+        self.image = img
+        self.rotation = 0
+        self.rotationSpeed = rotationSpeed
+        self.textureDimensions = textureDimensions
+        self.rect = {x = 0, y = 0, w = 0, h = 0}
+        self.size = size
+        self.fadeInTime = fadeInTime
+        self.fadeOutTime = fadeOutTime
+    }
+
+    function update(dt, gravity, turbulence)
+    {
+        self.position['x'] += self.velocity['x'] * dt
+        self.position['y'] += self.velocity['y'] * dt
+        self.velocity['x'] += gravity['x'] * dt + (random.random() * 2 - 1) * turbulence['x']
+        self.velocity['y'] += gravity['y'] * dt + (random.random() * 2 - 1) * turbulence['y']
+        self.lifetime -= dt
+
+        var lifeProgress = 1 - (self.lifetime / self.initialLifetime)
+        self.scaleX = self.scaleY = self.size * (1 - (lifeProgress * 0.5))
+
+        self.rotation += self.rotationSpeed * dt
+    }
+
+    function draw(x=0, y=0)
+    {
+        if self.lifetime > 0
+        {
+            const w = self.textureDimensions['w']
+            const h = self.textureDimensions['h']
+            var lifeProgress = 1 - (self.lifetime / self.initialLifetime)
+            var sizeW = math.max(1, math.floor((1 - lifeProgress) * w))
+            var sizeH = math.max(1, math.floor((1 - lifeProgress) * h))
+            self.rect['x'] = math.floor(lifeProgress * (w - sizeW))
+            self.rect['y'] = math.floor(lifeProgress * (h - sizeH))
+            self.rect['w'] = sizeW
+            self.rect['h'] = sizeH
+            
+            var alpha = 1
+            if lifeProgress < self.fadeInTime / self.initialLifetime
+            {
+                alpha = lifeProgress / (self.fadeInTime / self.initialLifetime)
+            }
+            else if lifeProgress > 1 - self.fadeOutTime / self.initialLifetime
+            {
+                alpha = (1 - lifeProgress) / (self.fadeOutTime / self.initialLifetime)
+            }
+            micro.gfx.setAlpha(math.floor(255 * alpha))
+            micro.gfx.draw(
+                self.image, 
+                self.position['x'] - x, 
+                self.position['y'] - y, 
+                self.rect, 
+                self.rotation,
+                1, 1,
+                sizeW / 2, sizeH / 2  // Center origin
+            )
+            micro.gfx.setAlpha()
+        }
+    }
+
+    function isAlive()
+    {
+        return self.lifetime > 0
+    }
+}
+
+export class ParticleEmitter
+{
+    new(config)
+    {
+        const image = micro.Image.fromFile(config['imagePath'])
+        const w = image.getWidth()
+        const h = image.getHeight()
+        self.particles = []
+        self.particleImage = image
+        self.textureDimensions = {w = w, h = h}
+        self.position = config['position']
+        self.spawnRate = config['spawnRate']
+        self.velocityRange = config['velocityRange']
+        self.lifetimeRange = config['lifetimeRange']
+        self.gravity = config['gravity']
+        self.spread = config['spread']
+        self.elapsedTime = 0
+        
+        self.maxParticles = config['maxParticles']
+        self.sizeRange = config['sizeRange']
+        self.rotationSpeed = config['rotationSpeed']
+        self.turbulence = config['turbulence']
+        self.emissionShape = config['emissionShape']
+        self.emissionRadius = config['emissionRadius']
+        self.fadeInTime = config['fadeInTime']
+        self.fadeOutTime = config['fadeOutTime']
+        
+        self.isActive = false
+    }
+
+    function update(dt)
+    {
+        // Update existing particles
+        var i = 0
+        while i < self.particles.len
+        {
+            self.particles[i].update(dt, self.gravity, self.turbulence)
+
+            // If the particle is not alive, remove it
+            if not self.particles[i].isAlive()
+            {
+                self.particles.delete(i)
+            }
+            else
+            {
+                i += 1
+            }
+        }
+
+        // Only spawn new particles if the emitter is active
+        if self.isActive
+        {
+            self.elapsedTime += dt
+            while self.elapsedTime >= self.spawnRate and self.particles.len < self.maxParticles
+            {
+                self.spawnParticle()
+                self.elapsedTime -= self.spawnRate
+            }
+        }
+    }
+
+    function start()
+    {
+        self.isActive = true
+        self.elapsedTime = 0  // Reset elapsed time when starting
+    }
+
+    function stop()
+    {
+        self.isActive = false
+    }
+
+    function emit(count)
+    {
+        for var i = 0; i < count and self.particles.len < self.maxParticles; i += 1
+        {
+            self.spawnParticle()
+        }
+    }
+
+    function clear()
+    {
+        self.particles = []
+    }
+
+    function hasActiveParticles()
+    {
+        return self.particles.len > 0
+    }
+
+    function setPosition(x, y)
+    {
+        self.position['x'] = x
+        self.position['y'] = y
+    }
+
+    function spawnParticle()
+    {
+        var posX, posY
+        if self.emissionShape == "circle"
+        {
+            var angle = random.random() * math.pi * 2
+            var distance = random.random() * self.emissionRadius
+            posX = self.position['x'] + math.cos(angle) * distance
+            posY = self.position['y'] + math.sin(angle) * distance
+        }
+        else
+        {
+            posX = self.position['x'] + (random.random() * 2 - 1) * self.spread['x']
+            posY = self.position['y'] + (random.random() * 2 - 1) * self.spread['y']
+        }
+
+        var velX = random.random() * (self.velocityRange['maxX'] - self.velocityRange['minX']) + self.velocityRange['minX']
+        var velY = random.random() * (self.velocityRange['maxY'] - self.velocityRange['minY']) + self.velocityRange['minY']
+        var lifetime = random.random() * (self.lifetimeRange['max'] - self.lifetimeRange['min']) + self.lifetimeRange['min']
+        var size = random.random() * (self.sizeRange['max'] - self.sizeRange['min']) + self.sizeRange['min']
+        var rotationSpeed = random.random() * (self.rotationSpeed['max'] - self.rotationSpeed['min']) + self.rotationSpeed['min']
+        
+        var newParticle = Particle.new(posX, posY, velX, velY, lifetime, self.particleImage, self.textureDimensions, 1, rotationSpeed, self.fadeInTime, self.fadeOutTime)
+        self.particles.add(newParticle)
+    }
+
+    function draw(x=0, y=0)
+    {
+        for const particle in self.particles
+        {
+            particle.draw(x, y)
+        }
+    }
+}

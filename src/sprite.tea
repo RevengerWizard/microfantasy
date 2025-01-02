@@ -1,0 +1,282 @@
+import "../lib/ase" as ase
+
+function setPixels(width, height, image, buf, offx=0, offy=0)
+{
+    for var y = 0; y < height; y++
+    {
+        for var x = 0; x < width; x++
+        {
+            const idx = (y * width + x) * 4
+
+            const r = buf.byte(idx)
+            const g = buf.byte(idx + 1)
+            const b = buf.byte(idx + 2)
+            const a = buf.byte(idx + 3)
+
+            image.setPixel(x + offx, y + offy, r, g, b, a)
+        }
+    }
+}
+
+function getDirection(dir)
+{
+    switch dir
+    {
+        case 0 { return "forward" }
+        case 1 { return "reverse" }
+        case 2 { return "pingpong" }
+        case 3 { return "pingpong" }
+    }
+}
+
+export class Sprite
+{
+    new(path, init_tag=nil)
+    {
+        self.create(path)
+        self.paused = true
+        self.tag = nil
+        self.tagname = nil
+        self.callback_onLoop = nil
+        self.callback_onFrame = {}
+        self.callback_onTagEnd = {}
+
+        if init_tag
+        {
+            self.setTag(init_tag)
+            self.paused = false
+        }
+    }
+
+    function create(path)
+    {
+        const data = ase.load(path)
+        self.width = data['header']['width']
+        self.height = data['header']['height']
+        self.frames = []
+        self.tags = {}
+
+        for const frame in data['header']['frames']
+        {
+            for const chunk in frame['chunks']
+            {
+                if chunk['type'] == 0x2005
+                {
+                    const cel = chunk['data']
+                    const width = cel['width']
+                    const height = cel['height']
+                    const buf = micro.data.decompress(cel['data'])
+                    const image = micro.Image.fromBlank(self.width, self.height)
+                    setPixels(width, height, image, buf, cel['x'], cel['y'])
+                    self.frames.add({img = image, duration = frame['frame_duration']})
+                }
+                else if chunk['type'] == 0x2018
+                {
+                    for const tag in chunk['data']['tags']
+                    {
+                        self.tags[tag['name']] = {
+                            start = tag['start'],
+                            end = tag['end'],
+                            direction = getDirection(tag['direction'])
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function pause()
+    {
+        self.paused = true
+    }
+
+    function play()
+    {
+        self.paused = false
+    }
+
+    function onFrame(frame, fn)
+    {
+        assert(typeof(frame) == 'number', "Frame must be a number!")
+        self.callback_onFrame[frame] = fn
+    }
+
+    function onTagEnd(tag, fn)
+    {
+        assert(typeof(tag) == 'string', "Tag must be a string!")
+        assert(tag in self.tags, "Tag " + tag + " not found in tags!")
+        self.callback_onTagEnd[tag] = fn
+    }
+
+    function onLoop(fn)
+    {
+        self.callback_onLoop = fn
+    }
+
+    function togglePlay()
+    {
+        if self.paused
+        {
+            self.play()
+        }
+        else
+        {
+            self.pause()
+        }
+    }
+
+    function stop(onlast=false)
+    {
+        var idx = 1
+        self.paused = true
+        if onlast { idx = self.tag['end'] + 1 }
+        self.setFrame(idx)
+    }
+
+    function setTag(tag)
+    {
+        assert(typeof(tag) == 'string', "No animation tag specified!")
+        assert(self.tags.get(tag), "Tag " + tag + " not found in tags!")
+
+        const oldTag = self.tagname
+        if self.tag == self.tags[tag] { return }
+
+        self.tagname = tag
+        self.tag = self.tags[self.tagname]
+        self.frameIndex = nil
+        self.direction = self.tag['direction']
+
+        self.nextFrame()
+    }
+
+    function getTag()
+    {
+        return self.tagname
+    }
+
+    function setFrame(frame)
+    {
+        const start = self.tag['start'] + 1
+        const end = self.tag['end'] + 1
+
+        if frame < start or frame > end
+        {
+            error("Frame " + frame + " is out of range of tag '" + self.tagname + "' (" + start + ".." + end + ")")
+        }
+
+        self.frameIndex = frame
+        self.frame = self.frames[self.frameIndex]
+        self.frameTimer = self.frame['duration']
+    }
+    
+    function getFrame()
+    {
+        return self.frameIndex
+    }
+
+    function getWidth()
+    {
+        return self.width
+    }
+
+    function getHeight()
+    {
+        return self.height
+    }
+
+    function pingpongBounce()
+    {
+        if self.direction == "forward"
+        {
+            self.direction = "reverse"
+            self.frameIndex = self.frameIndex - 2
+        }
+        else
+        {
+            self.direction = "forward"
+            self.frameIndex = self.frameIndex + 2
+        }
+    }
+
+    function call_onLoop()
+    {
+        if self.callback_onLoop { self.callback_onLoop() }
+
+        const tag = self.tagname
+        if tag in self.callback_onTagEnd
+        {
+            self.callback_onTagEnd[tag]()
+        }
+    }
+
+    function nextFrame()
+    {
+        const start = self.tag['start'] + 1
+        const end = self.tag['end'] + 1
+        const forward = self.direction == "forward"
+
+        if forward
+        {
+            self.frameIndex = (self.frameIndex or start - 1) + 1
+        }
+        else
+        {
+            self.frameIndex = (self.frameIndex or end + 1) - 1
+        }
+
+        if self.frameIndex in self.callback_onFrame
+        {
+            self.callback_onFrame[self.frameIndex](self.tagname)
+        }
+
+        // Looping
+        if forward and self.frameIndex > end
+        {
+            if self.tag['direction'] == "pingpong"
+            {
+                self.pingpongBounce()
+            }
+            else
+            {
+                self.frameIndex = start
+            }
+            self.call_onLoop()
+        }
+        else if not forward and self.frameIndex < start
+        {
+            if self.tag['direction'] == "pingpong"
+            {
+                self.pingpongBounce()
+            }
+            else
+            {
+                self.frameIndex = end
+                self.call_onLoop()
+            }
+        }
+
+        // Get next frame
+        self.frame = self.frames[self.frameIndex - 1]
+        self.frameTimer = self.frame['duration']
+    }
+
+    function update(dt)
+    {
+        if self.paused { return }
+
+        // Update timer in milliseconds since Aseprite uses ms for durations
+        self.frameTimer = self.frameTimer - (dt * 1000)
+
+        if self.frameTimer <= 0
+        {
+            self.nextFrame()
+        }
+    }
+
+    function draw(x, y, rot=0, sx=1, sy=1, ox=0, oy=0)
+    {
+        const idx = self.frameIndex - 1
+        const frame = self.frames[idx]['img']
+        micro.gfx.draw(frame, x, y, nil, rot, sx, sy, ox, oy)
+    }
+}

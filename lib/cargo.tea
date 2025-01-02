@@ -1,0 +1,83 @@
+function makeSound(path)
+{
+    const data = micro.Data.fromFile(path)
+    micro.Source.fromData(data)
+}
+
+function makeImage(path)
+{
+    return micro.Image.fromFile(path)
+}
+
+const loaders = {
+    png = makeImage,
+    ogg = makeSound
+}
+
+const processors = {}
+
+class Asset
+{
+    new(path, loaders, processors)
+    {
+        self.path = path
+        self.loaders = loaders
+        self.processors = processors
+        self.assets = {}
+    }
+
+    function getattr(key)
+    {
+        if key in self.assets
+        {
+            return self.assets[key]
+        }
+
+        const path = './' + self.path + '/' + key
+        print(micro.filesystem.exists('./asset/ui/heart_empty.png'))
+        print(path)
+
+        if micro.filesystem.isDir(path)
+        {
+            self.assets[key] = Asset.new(path, self.loaders, self.processors)
+            return self.assets[key]
+        }
+
+        for const ext, loader in self.loaders
+        {
+            const filepath = "${path}.${ext}"
+            print(filepath)
+            if loader and micro.filesystem.exists(filepath)
+            {
+                const asset = loader(filepath)
+                self.assets[key] = asset
+
+                // Apply processors
+                for const pattern, processor in self.processors
+                {
+                    if filepath.endswith(pattern)
+                    {
+                        processor(asset, filepath, self)
+                    }
+                }
+
+                return asset
+            }
+        }
+
+        error("No asset found for '${key}'")
+    }
+}
+
+export function init(conf)
+{
+    if conf is String
+    {
+        conf = { dir = conf }
+    }
+
+    //const loaders = loaders + conf['loaders']
+    //const processors = processors + conf['processors']
+
+    return Asset.new(conf['dir'], loaders, processors)
+}

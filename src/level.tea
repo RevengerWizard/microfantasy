@@ -1,0 +1,161 @@
+import math
+
+import "../lib/sti" as sti
+
+const entities = []
+var player
+var tilemap
+var world
+
+export function getWorld()
+{
+    return world
+}
+
+export function setWorld(w)
+{
+    world = w
+}
+
+export function addWorld(ent)
+{
+    world.add(ent, ent.x, ent.y, ent.w, ent.h)
+}
+
+export function filter(item, other)
+{
+    if other is Map
+    {
+        if other['type'] == 'solid' or other['type'] == 'platform'
+        {
+            return 'slide'
+        }
+    }
+}
+
+export const gravity = 9.8
+
+from "enemy" import Dwarf, Oldman, Barbarian, Wizard
+from "potion" import Potion
+from "chest" import Chest
+from "key" import Key
+from "coin" import Coin
+from "weapon" import Sword, Axe, Bow
+
+const entityMap = {
+    wizard = Wizard,
+    dwarf = Dwarf,
+    oldman = Oldman,
+    barbarian = Barbarian,
+    potion = Potion,
+    coin = Coin,
+    chest = Chest,
+    key = Key,
+    bow = Bow,
+    sword = Sword,
+    axe = Axe
+}
+
+export function load(name)
+{
+    from "../${name}" import data
+    tilemap = sti.load(data)
+    sti.plugin.bump_init(tilemap, world)
+    spawn()
+}
+
+function spawn()
+{
+    var objects
+    for const layer in tilemap.layers
+    {
+        if layer['type'] == 'objectgroup' and layer['name'] == 'entities'
+        {
+            objects = layer['objects']
+            break
+        }
+    }
+    if not objects { return }
+
+    for const v in objects
+    {
+        const ent = entityMap.get(v['type'])
+        if ent
+        {
+            const x = math.round(v['x'] + v['width'] / 2)
+            const y = math.round(v['y'] + v['height'] / 2)
+            const obj = ent.new(x, y, v['name'])
+        }
+    }
+
+    Bow.new(130, 70, "bow")
+    Sword.new(105, 70, "sword")
+    Axe.new(95, 70, "axe")
+    Wizard.new(35, 40, "wizard_red_staff")
+}
+
+export function update(dt)
+{
+    player.update(dt)
+    for const ent in entities
+    {
+        ent.update(dt)
+    }
+}
+
+export function draw(x=0, y=0)
+{
+    tilemap.draw(x, y)
+    for const ent in entities
+    {
+        ent.draw(x, y)
+    }
+    player.draw(x, y)
+    if micro.keyboard.isDown('g')
+    {
+        sti.plugin.bump_draw(tilemap, x, y)
+    }
+}
+
+export function spawnEntity(x, y, type, name)
+{
+    const entity = entityMap.get(type)
+    if entity
+    {
+        entity.new(x, y, name)
+    }
+}
+
+export function addEntity(ent)
+{
+    entities.add(ent)
+}
+
+export function addPlayer(ent)
+{
+    player = ent
+}
+
+export function getPlayer()
+{
+    return player
+}
+
+export function deleteEntity(ent)
+{
+    const idx = entities.index(ent)
+    if idx != -1
+    {
+        entities.delete(idx)
+    }
+}
+
+export function removeEntity(ent)
+{
+    const idx = entities.index(ent)
+    if idx != -1
+    {
+        world.remove(ent)
+        entities.delete(idx)
+    }
+}

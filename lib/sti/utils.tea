@@ -1,0 +1,37 @@
+// We just don't know
+export function getTiles(imageW, tileW)
+{
+    var n = 0
+    while imageW >= tileW
+    {
+        imageW = imageW - tileW
+        if imageW >= 0 { n++ }
+    }
+    return n
+}
+
+export function deepcopy(obj)
+{
+    if obj is Map
+    {
+        const copy = {}
+        for const k, v in obj
+        {
+            copy[k] = deepcopy(v)
+        }
+        return copy
+    }
+    else if obj is List
+    {
+        const copy = []
+        for const item in obj
+        {
+            copy.add(deepcopy(item))
+        }
+        return copy
+    }
+    else
+    {
+        return obj
+    }
+}

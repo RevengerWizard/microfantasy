@@ -1,0 +1,33 @@
+import random
+
+export class LootTable
+{
+    new()
+    {
+        self.items = []
+    }
+
+    function addItem(item, name, weight)
+    {
+        self.items.add({item = item, name = name, weight = weight})
+    }
+
+    function roll(x, y)
+    {
+        var totalWeight = 0
+        for const entry in self.items
+        {
+            totalWeight += entry['weight']
+        }
+
+        var roll = random.random() * totalWeight
+        for const entry in self.items
+        {
+            roll -= entry['weight']
+            if roll <= 0
+            {
+                return entry['item'].new(x, y, entry['name'])
+            }
+        }
+    }
+}

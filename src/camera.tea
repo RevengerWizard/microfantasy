@@ -1,0 +1,112 @@
+import math
+
+export class Camera
+{
+    new(x, y, options={})
+    {
+        self.x = x
+        self.y = y
+        self.target = nil
+
+        self.settings = {
+            speed = options.get('speed', 120),
+            damping = options.get('damping', 0.15),
+            deadZoneWidth = options.get('deadZoneWidth', 24),
+            deadZoneHeight = options.get('deadZoneHeight', 24),
+            cornerSize = options.get('cornerSize', 4)
+        }
+
+        self.velocity = {x = 0, y = 0}
+    }
+
+    function screenToWorld(x, y)
+    {
+        return {
+            x = x + self.x,
+            y = y + self.y
+        }
+    }
+
+    function follow(target)
+    {
+        self.target = target
+    }
+
+    function update(dt)
+    {
+        if not self.target { return }
+
+        const screenWidth = micro.gfx.screen.getWidth()
+        const screenHeight = micro.gfx.screen.getHeight()
+        
+        const leftBound = self.x + (screenWidth - self.settings['deadZoneWidth']) / 2
+        const rightBound = self.x + (screenWidth + self.settings['deadZoneWidth']) / 2
+        const topBound = self.y + (screenHeight - self.settings['deadZoneHeight']) / 2
+        const bottomBound = self.y + (screenHeight + self.settings['deadZoneHeight']) / 2
+        
+        var moveX = 0
+        var moveY = 0
+        
+        if self.target.x < leftBound
+        {
+            moveX = self.target.x - leftBound
+        }
+        else if self.target.x > rightBound
+        {
+            moveX = self.target.x - rightBound
+        }
+        
+        if self.target.y < topBound
+        {
+            moveY = self.target.y - topBound
+        }
+        else if self.target.y > bottomBound
+        {
+            moveY = self.target.y - bottomBound
+        }
+
+        if moveX != 0
+        {
+            moveX = math.clamp(moveX, -self.settings['speed'] * dt, self.settings['speed'] * dt)
+            self.velocity['x'] += (moveX - self.velocity['x']) * self.settings['damping']
+            self.x += self.velocity['x']
+        }
+        
+        if moveY != 0
+        {
+            moveY = math.clamp(moveY, -self.settings['speed'] * dt, self.settings['speed'] * dt)
+            self.velocity['y'] += (moveY - self.velocity['y']) * self.settings['damping']
+            self.y += self.velocity['y']
+        }
+    }
+
+    function draw()
+    {
+        const screenWidth = micro.gfx.screen.getWidth()
+        const screenHeight = micro.gfx.screen.getHeight()
+        
+        // Calculate deadzone rectangle corners
+        const left = (screenWidth - self.settings['deadZoneWidth']) / 2
+        const right = left + self.settings['deadZoneWidth']
+        const top = (screenHeight - self.settings['deadZoneHeight']) / 2
+        const bottom = top + self.settings['deadZoneHeight']
+        
+        const cornerLength = self.settings['cornerSize']
+
+        // Draw top-left corner
+        micro.gfx.line(left, top, left + cornerLength, top)
+        micro.gfx.line(left, top, left, top + cornerLength)
+
+        // Draw top-right corner
+        micro.gfx.line(right - cornerLength, top, right, top)
+        micro.gfx.line(right, top, right, top + cornerLength)
+
+        // Draw bottom-left corner
+        micro.gfx.line(left, bottom - cornerLength, left, bottom)
+        micro.gfx.line(left, bottom, left + cornerLength, bottom)
+
+        // Draw bottom-right corner
+        micro.gfx.line(right - cornerLength, bottom, right, bottom)
+        micro.gfx.line(right, bottom, right, bottom - cornerLength)
+    }
+}

@@ -1,0 +1,503 @@
+import io
+
+function unpack(fmt, data, pos=0)
+{
+    var res
+
+    if fmt == 'B'   // BYTE (1 byte, unsigned)
+    {
+        res = data.byte(pos)
+    }
+    else if fmt == 'H'  // WORD (2 bytes, unsigned)
+    {
+        res = (data.byte(pos) | (data.byte(pos + 1) << 8))
+    }
+    else if fmt == 'h'  // SHORT (2 bytes, signed)
+    {
+        const value = (data.byte(pos) | (data.byte(pos + 1) << 8))
+        if value >= 0x8000
+        {
+            res = value - 0x10000
+        }
+        else
+        {
+            res = value
+        }
+    }
+    else if fmt == 'I4' or fmt == 'i4'  // DWORD/LONG/FIXED (4 bytes, signed/unsigned)
+    {
+        const b1 = data.byte(pos)
+        const b2 = data.byte(pos + 1)
+        const b3 = data.byte(pos + 2)
+        const b4 = data.byte(pos + 3)
+        res = (b1 | (b2 << 8) | (b3 << 16) | (b4 << 24))
+        if fmt == 'i4' and res >= 0x80000000    // signed check
+        {
+            res = res - 0x100000000
+        }
+    }
+    else
+    {
+        error("Unsupported format: " + fmt)
+    }
+    return res
+}
+
+const BYTE = ['B', 1]
+const WORD = ['H', 2]
+const SHORT = ['h', 2]
+const DWORD = ['I4', 4]
+const LONG = ['i4', 4]
+const FIXED = ['i4', 4]
+
+function read_num(file, fmt, amount=1)
+{
+    return unpack(fmt[0], file.read(fmt[1] * amount))
+}
+
+function read_string(file)
+{
+    return file.read(read_num(file, WORD))
+}
+
+function grab_header(file)
+{
+    const header = {}
+    
+    header['file_size'] = read_num(file, DWORD)
+    header['magic_number'] = read_num(file, WORD)
+
+    if header['magic_number'] != 0xA5E0
+    {
+        error("Not a valid aseprite file")
+    }
+
+    header['frames_number'] = read_num(file, WORD)
+    header['width'] = read_num(file, WORD)
+    header['height'] = read_num(file, WORD)
+    header['color_depth'] = read_num(file, WORD)
+    header['opacity'] = read_num(file, DWORD)
+    header['speed'] = read_num(file, WORD)
+
+    // Skip
+    read_num(file, DWORD, 2)
+
+    header['palette_entry'] = read_num(file, BYTE)
+
+    // Skip
+    read_num(file, BYTE, 3)
+
+    header['number_color'] = read_num(file, WORD)
+    header['pixel_width'] = read_num(file, BYTE)
+    header['pixel_height'] = read_num(file, BYTE)
+    header['grid_x'] = read_num(file, SHORT)
+    header['grid_y'] = read_num(file, SHORT)
+    header['grid_width'] = read_num(file, WORD)
+    header['grid_height'] = read_num(file, WORD)
+
+    // Skip
+    read_num(file, BYTE, 84)
+
+    header['frames'] = []
+
+    return header
+}
+
+function grab_frame_header(file)
+{
+    const header = {}
+
+    header['bytes_size'] = read_num(file, DWORD)
+    header['magic_number'] = read_num(file, WORD)
+
+    if header['magic_number'] != 0xF1FA
+    {
+        error("Corrupted file")
+    }
+
+    const old_chunks = read_num(file, WORD)
+
+    header['frame_duration'] = read_num(file, WORD)
+
+    // Skip
+    read_num(file, BYTE, 2)
+
+    // If 0, use old chunks as chunks
+    const new_chunks = read_num(file, DWORD)
+
+    if new_chunks == 0
+    {
+        header['chunks_number'] = old_chunks
+    }
+    else
+    {
+        header['chunks_number'] = new_chunks
+    }
+
+    header['chunks'] = []
+    
+    return header
+}
+
+function grab_color_profile(file)
+{
+    const color = {}
+
+    color['type'] = read_num(file, WORD)
+    color['uses_fixed_gamma'] = read_num(file, WORD)
+    color['fixed_gamma'] = read_num(file, FIXED)
+
+    // Skip
+    read_num(file, BYTE, 8)
+
+    if color['type'] != 1
+    {
+        error("No supported color profile, use sRGB")
+    }
+
+    return color
+}
+
+function grab_palette(file)
+{
+    const palette = {}
+
+    palette['entry_size'] = read_num(file, DWORD)
+    palette['first_color'] = read_num(file, DWORD)
+    palette['last_color'] = read_num(file, DWORD)
+    palette['colors'] = []
+
+    // Skip
+    read_num(file, BYTE, 8)
+
+    for var i = 0; i < palette['entry_size']; i++
+    {
+        const has_name = read_num(file, WORD)
+
+        palette['colors'].add({
+            color = [
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+            ]
+        })
+
+        if has_name == 1
+        {
+            palette['colors'][i]['name'] = read_string(file)
+        }
+    }
+
+    return palette
+}
+
+function grab_old_palette(file)
+{
+    const palette = {}
+
+    palette['packets'] = read_num(file, WORD)
+    palette['colors_packet'] = []
+
+    for var i = 0; i < palette['packets']; i++
+    {
+        palette['colors_packet'].add({
+            entries = read_num(file, BYTE),
+            number = read_num(file, BYTE),
+            colors = []
+        })
+
+        // (0 means 256)
+        if palette['colors_packet'][i]['number'] == 0
+        {
+            palette['colors_packet'][i]['number'] == 256
+        }
+
+        for var j = 0; j < palette['colors_packet'][i]['number']; j++
+        {
+            palette['colors_packet'][i][j] = [
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+                read_num(file, BYTE)
+            ]
+        }
+    }
+
+    return palette
+}
+
+function grab_layer(file)
+{
+    const layer = {}
+
+    layer['flags'] = read_num(file, WORD)
+    layer['type'] = read_num(file, WORD)
+    layer['child_level'] = read_num(file, WORD)
+    layer['width'] = read_num(file, WORD)
+    layer['height'] = read_num(file, WORD)
+    layer['blend'] = read_num(file, WORD)
+    layer['opacity'] = read_num(file, BYTE)
+
+    // Skip
+    read_num(file, BYTE, 3)
+
+    layer['name'] = read_string(file)
+
+    return layer
+}
+
+function grab_cel(file, size)
+{
+    const cel = {}
+
+    cel['layer_index'] = read_num(file, WORD)
+    cel['x'] = read_num(file, WORD)
+    cel['y'] = read_num(file, WORD)
+    cel['opacity_level'] = read_num(file, BYTE)
+    cel['type'] = read_num(file, WORD)
+
+    // Skip
+    read_num(file, BYTE, 7)
+
+    switch cel['type']
+    {
+        case 0  // Raw image data
+        {
+            cel['width'] = read_num(file, WORD)
+            cel['height'] = read_num(file, WORD)
+            cel['data'] = []
+
+            for var i = 0; i < cel['width'] * cel['height']; i++
+            {
+                cel['data'].add([
+                    read_num(file, BYTE),
+                    read_num(file, BYTE),
+                    read_num(file, BYTE),
+                    read_num(file, BYTE)
+                ])
+            }
+        }
+        case 1  // Linked cel
+        {
+            cel['frame_pos_link'] = read_num(file, WORD)
+        }
+        case 2  // Compressed image
+        {
+            cel['width'] = read_num(file, WORD)
+            cel['height'] = read_num(file, WORD)
+            cel['data'] = file.read(size - 26)
+        }
+        case 3  // Compressed tilemap
+        {
+            cel['width'] = read_num(file, WORD)
+            cel['height'] = read_num(file, WORD)
+            cel['bits_per_tile'] = read_num(file, WORD)
+            cel['bitmask_tile_id'] = read_num(file, DWORD)  // Always 32 bits
+            cel['bitmask_x_flip'] = read_num(file, DWORD)
+            cel['bitmask_y_flip'] = read_num(file, DWORD)
+            cel['bitmask_rotation'] = read_num(file, DWORD)
+
+            // Skip
+            read_num(file, BYTE, 10)
+
+            cel['data'] = []
+            for var i = 0; i < cel['width'] * cel['height']; i++
+            {
+                cel['data'].add([read_num(file, DWORD)])
+            }
+        }
+    }
+
+    return cel
+}
+
+function grab_tags(file)
+{
+    const tags = {}
+
+    tags['number'] = read_num(file, WORD)
+    tags['tags'] = []
+
+    // Skip
+    read_num(file, BYTE, 8)
+
+    for var i = 0; i < tags['number']; i++
+    {
+        tags['tags'].add({
+            start = read_num(file, WORD),
+            end = read_num(file, WORD),
+            direction = read_num(file, BYTE),
+            extra_byte = read_num(file, BYTE),
+            color = read_num(file, BYTE, 3),
+            skip_holder = read_num(file, BYTE, 8),
+            name = read_string(file)
+        })
+    }
+
+    return tags
+}
+
+function grab_slice(file)
+{
+    const slice = {}
+
+    slice['key_numbers'] = read_num(file, DWORD)
+    slice['keys'] = []
+    slice['flags'] = read_num(file, DWORD)
+
+    // Reserved?
+    read_num(file, DWORD)
+
+    slice['name'] = read_string(file)
+
+    for var i = 0; i < slice['key_numbers']; i++
+    {
+        slice['keys'].add({
+            frame = read_num(file, DWORD),
+            x = read_num(file, DWORD),
+            y = read_num(file, DWORD),
+            width = read_num(file, DWORD),
+            height = read_num(file, DWORD)
+        })
+
+        if slice['flags'] == 1
+        {
+            slice['keys'][i]['center_x'] = read_num(file, DWORD)
+            slice['keys'][i]['center_y'] = read_num(file, DWORD)
+            slice['keys'][i]['center_width'] = read_num(file, DWORD)
+            slice['keys'][i]['center_height'] = read_num(file, DWORD)
+        }
+        else if slice['flags'] == 2
+        {
+            slice['keys'][i]['pivot_x'] = read_num(file, DWORD)
+            slice['keys'][i]['pivot_y'] = read_num(file, DWORD)
+        }
+    }
+
+    return slice
+}
+
+function grab_user_data(file)
+{
+    const user_data = {}
+
+    user_data['flags'] = read_num(file, DWORD)
+
+    if user_data['flags'] == 1
+    {
+        user_data['text'] = read_string(file)
+    }
+    else if user_data['flags'] == 2
+    {
+        user_data['colors'] = read_num(file, BYTE, 4)
+    }
+
+    return user_data
+}
+
+function grab_tileset(file)
+{
+    const tileset = {}
+
+    tileset['id'] = read_num(file, DWORD)
+    tileset['flags'] = read_num(file, DWORD)
+    tileset['num_tiles'] = read_num(file, DWORD)
+    tileset['tile_width'] = read_num(file, WORD)
+    tileset['tile_height'] = read_num(file, WORD)
+    tileset['base_index'] = read_num(file, SHORT)
+
+    // Skip
+    read_num(file, BYTE, 14)
+
+    tileset['name'] = read_string(file)
+
+    if tileset['flags'] == 1
+    {
+        tileset['external_id'] = read_num(file, DWORD)
+        tileset['tileset_id_in_external_file'] = read_num(file, DWORD)
+    }
+    else if tileset['flags'] == 2
+    {
+        error("Compressed tileset not supported yet")
+    }
+
+    return tileset
+}
+
+function grab_chunk(file)
+{
+    const chunk = {}
+    chunk['size'] = read_num(file, DWORD)
+    chunk['type'] = read_num(file, WORD)
+    
+    switch chunk['type']
+    {
+        case 0x2007
+        {
+            chunk['data'] = grab_color_profile(file)
+        }
+        case 0x2019
+        {
+            chunk['data'] = grab_palette(file)
+        }
+        case 0x0004
+        {
+            chunk['data'] = grab_old_palette(file)
+        }
+        case 0x2004
+        {
+            chunk['data'] = grab_layer(file)
+        }
+        case 0x2005
+        {
+            chunk['data'] = grab_cel(file, chunk['size'])
+        }
+        case 0x2018
+        {
+            chunk['data'] = grab_tags(file)
+        }
+        case 0x2022
+        {
+            chunk['data'] = grab_slice(file)
+        }
+        case 0x2020
+        {
+            chunk['data'] = grab_user_data(file)
+        }
+        case 0x2023
+        {
+            chunk['data'] = grab_tileset(file)
+        }
+        default
+        {
+            print("Invalid chunk type " + tostring(chunk['type']))
+        }
+    }
+
+    return chunk
+}
+
+export function load(src)
+{
+    const file = io.open(src, 'rb')
+
+    const ase = {}
+
+    // Parse header
+    ase['header'] = grab_header(file)
+
+    // Parse frames
+    for var i = 0; i < ase['header']['frames_number']; i++
+    {
+        ase['header']['frames'].add(grab_frame_header(file))
+
+        // Parse frames chunks
+        for var j = 0; j < ase['header']['frames'][i]['chunks_number']; j++
+        {
+            ase['header']['frames'][i]['chunks'].add(grab_chunk(file))
+        }
+    }
+
+    file.close()
+    return ase
+}

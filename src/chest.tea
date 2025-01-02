@@ -1,0 +1,58 @@
+import random
+
+import "level" as level
+
+from "loot" import LootTable
+from "item" import Item
+from "coin" import Coin
+
+export class Chest : Item
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'chest'
+        self.isOpen = false
+        const table = LootTable.new()
+        table.addItem(Coin, 'coin_silver', 70)
+        table.addItem(Coin, 'coin_gold', 30)
+        self.lootTable = table
+        self.itemCount = random.range(3, 10)
+    }
+    
+    function load()
+    {
+        super.load()
+        self.empty = micro.Image.fromFile("asset/item/${self.name}_empty.png")
+        self.full = micro.Image.fromFile("asset/item/${self.name}_full.png")
+    }
+
+    function loot()
+    {
+        const x, y = self.x, self.y - 5
+        for var i = 0; i < self.itemCount; i++
+        {
+            var item = self.lootTable.roll(x, y)
+            if item != nil
+            {
+                const direction = random.random() > 0.5 ? 1 : -1  // Randomly choose left or right
+                const initialSpeed = random.random() * 0.6    // Random speed between 50-80
+                const upwardSpeed = random.random() * 0.2     // Random upward boost between 40-60
+
+                // Apply the velocities
+                item.dx = initialSpeed * direction
+                item.dy = -upwardSpeed  // Negative for upward movement
+            }
+        }
+    }
+
+    function open()
+    {
+        if not self.isOpen
+        {
+            self.isOpen = true
+            self.image = self.empty
+            self.loot()
+        }
+    }
+}

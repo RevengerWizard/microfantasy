@@ -1,0 +1,15 @@
+export function getName(type, variant)
+{
+    if variant == 'none'
+    {
+        return type
+    }
+    else
+    {
+        if tonumber(variant) != nil
+        {
+            return "${type}${variant}"
+        }
+        return "${type}_${variant}"
+    }
+}

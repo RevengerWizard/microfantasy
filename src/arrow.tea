@@ -1,0 +1,127 @@
+import math
+
+import "level" as level
+
+from "enemy" import Enemy
+
+function filter(item, other)
+{
+    if other is Map
+    {
+        if other['type'] == 'solid'
+        {
+            return 'touch'
+        }
+        return
+    }
+
+    if other is Enemy
+    {
+        return 'touch'
+    }
+}
+
+export class Arrow
+{
+    new(x, y, name, direction=1)
+    {
+        self.x = x
+        self.y = y
+        self.name = name
+        self.type = 'arrow'
+        // direction: 1 for right, -1 for left
+        self.direction = direction
+        self.speed = 150
+        self.w = 8
+        self.h = 4
+        self.stuck = false
+        self.stuckTo = nil
+        self.stuckOffset = {x = 0, y = 0}
+        self.load()
+    }
+
+    function load()
+    {
+        const image = micro.Image.fromFile("asset/item/${self.name}.png")
+        self.ox = math.floor((image.getWidth() / 2) - 1)
+        self.oy = math.floor((image.getHeight() / 2) - 1)
+        self.image = image
+    }
+
+    function shoot()
+    {
+        level.addEntity(self)
+        level.addWorld(self)
+    }
+
+    function update(dt)
+    {
+        if self.stuck
+        {
+            // If stuck to an entity, move with it
+            if self.stuckTo
+            {
+                self.x = self.stuckTo.x + self.stuckOffset['x']
+                self.y = self.stuckTo.y + self.stuckOffset['y']
+            }
+            return
+        }
+
+        const world = level.getWorld()
+
+        // Only move horizontally
+        const targetX = self.x + (self.speed * self.direction * dt)
+
+        const x, y, cols = world.move(self, targetX, self.y, filter)
+        
+        if cols.len > 0
+        {
+            // Get the first collision
+            const col = cols[0]
+            const other = col['other']
+            
+            // Stop at collision point and stick to the object
+            self.x = col['touch']['x']
+            self.y = col['touch']['y']
+            self.stuck = true
+            
+            // If we hit an entity (not a tile), store reference and offset
+            if other is not Map
+            {
+                self.stuckTo = other
+                self.stuckOffset = {
+                    x = self.x - other.x,
+                    y = self.y - other.y
+                }
+                
+                // Here you could add damage or other effects
+                if other is Enemy
+                {
+                    other.hit(1, self.direction)
+                    level.removeEntity(self)
+                }
+            }
+        }
+        else
+        {
+            // No collision, continue moving
+            self.x = targetX
+        }
+    }
+
+    function draw(x=0, y=0)
+    {
+        // Draw with correct rotation based on direction
+        micro.gfx.draw(
+            self.image, 
+            self.x - x, 
+            self.y - y, 
+            nil,
+            0,
+            self.direction, 
+            1, 
+            self.ox, 
+            self.oy
+        )
+    }
+}

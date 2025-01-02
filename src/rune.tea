@@ -1,0 +1,391 @@
+import random
+
+const WIDTH = 5
+const HEIGHT = 7
+
+const MIN_WEIGHT = 11
+const MAX_WEIGHT = 21
+
+function coin(change=0.5)
+{
+    return random.random() < change
+}
+
+class Rune
+{
+    new()
+    {
+        self.hSym = 0
+        self.vSym = 0
+
+        var w
+        do
+        {
+            self.bitmap = []
+            for var i = 0; i < HEIGHT; i++
+            {
+                const row = []
+                for var j = 0; j < WIDTH; j++
+                {
+                    row.add(false)
+                }
+                self.bitmap.add(row)
+            }
+
+            if coin(5 / 7)
+            {
+				self.random1()
+            }
+			else
+            {
+				self.random2()
+            }
+
+			w = self.getWeight()
+        }
+        while(w < MIN_WEIGHT or w > MAX_WEIGHT or not self.isConnected(w))
+    }
+}
+
+function Rune:random1()
+{
+    const bitmap = self.bitmap
+    bitmap[0][0] = coin(4 / 5)
+    bitmap[0][2] = coin(4 / 5)
+    bitmap[0][4] = coin(4 / 5) // 5/5
+
+    bitmap[3][0] = coin(4 / 5)
+    bitmap[3][2] = coin(4 / 5) // 5/5
+    bitmap[3][4] = coin(4 / 5) // 5/5
+
+    bitmap[6][0] = coin(4 / 5)
+    bitmap[6][2] = coin(4 / 5)
+    bitmap[6][4] = coin(2 / 5)
+
+    bitmap[0][1] = (bitmap[0][0] and bitmap[0][2] and coin(3 / 4)) // 4/4
+    bitmap[0][3] = (bitmap[0][2] and bitmap[0][4] and coin(3 / 4)) // 4/4
+
+    bitmap[1][0] = bitmap[2][0] = (bitmap[0][0] and bitmap[3][0] and coin(2 / 3))
+    bitmap[1][2] = bitmap[2][2] = (bitmap[0][2] and bitmap[3][2] and coin(1 / 4))
+    bitmap[1][4] = bitmap[2][4] = (bitmap[0][4] and bitmap[3][4] and coin(4 / 5)) // 5/5
+
+    bitmap[3][1] = (bitmap[3][0] and bitmap[3][2] and coin(3 / 4))
+    bitmap[3][3] = (bitmap[3][2] and bitmap[3][4] and coin(2 / 5))
+
+    bitmap[4][0] = bitmap[5][0] = (bitmap[3][0] and bitmap[6][0] and coin(3 / 4)) // 2/2
+    bitmap[4][2] = bitmap[5][2] = (bitmap[3][2] and bitmap[6][2] and coin(2 / 4))
+    bitmap[4][4] = bitmap[5][4] = (bitmap[3][4] and bitmap[6][4] and coin(3 / 4)) // 2/2
+
+    bitmap[6][1] = (bitmap[6][0] and bitmap[6][2] and coin(4 / 5)) // 2/2
+    bitmap[6][3] = (bitmap[6][2] and bitmap[6][4] and coin(4 / 5)) // 2/2
+
+    if bitmap[4][2] and (bitmap[3][1] != bitmap[3][3])
+    {
+        bitmap[5][2] = false;
+    }
+}
+
+function Rune:random2()
+{
+    const bitmap = self.bitmap
+    bitmap[0][0] = coin(1 / 2)
+    bitmap[0][2] = coin(1 / 2)
+    bitmap[0][4] = coin(1 / 2)
+
+    bitmap[2][0] = coin(3 / 4) // 2/2
+    bitmap[2][2] = coin(3 / 4) // 2/2
+    bitmap[2][4] = coin(3 / 4) // 2/2
+
+    bitmap[4][0] = coin(1 / 2)
+    bitmap[4][2] = coin(1 / 2)
+    bitmap[4][4] = coin(1 / 2)
+
+    bitmap[6][0] = coin(1 / 2)
+    bitmap[6][2] = coin(1 / 2)
+    bitmap[6][4] = coin(1 / 2)
+
+    bitmap[0][1] = (bitmap[0][0] and bitmap[0][2] and coin(1 / 4)) // 0/2
+    bitmap[0][3] = (bitmap[0][2] and bitmap[0][4] and coin(1 / 4)) // 0/2
+
+    bitmap[1][0] = (bitmap[0][0] and bitmap[2][0] and coin(3 / 4)) // 1/1
+    bitmap[1][2] = (bitmap[0][2] and bitmap[2][2] and coin(3 / 4)) // 1/1
+    bitmap[1][4] = (bitmap[0][4] and bitmap[2][4] and coin(3 / 4)) // 1/1
+
+    bitmap[2][1] = (bitmap[2][0] and bitmap[2][2] and coin(3 / 4)) // 2/2
+    bitmap[2][3] = (bitmap[2][2] and bitmap[2][4] and coin(3 / 4)) // 2/2
+
+    bitmap[3][0] = (bitmap[2][0] and bitmap[4][0] and coin(3 / 4)) // 1/1
+    bitmap[3][2] = (bitmap[2][2] and bitmap[4][2] and coin(1 / 2))
+    bitmap[3][4] = (bitmap[2][4] and bitmap[4][4] and coin(3 / 4)) // 1/1
+
+    bitmap[4][1] = bitmap[4][2]
+    bitmap[4][3] = bitmap[4][2]
+
+    bitmap[5][0] = (bitmap[4][0] and bitmap[6][0] and coin(3 / 4)) // 1/1
+    bitmap[5][2] = (bitmap[4][2] and bitmap[6][2] and coin(1 / 2)) // 0/1
+    bitmap[5][4] = (bitmap[4][4] and bitmap[6][4] and coin(3 / 4)) // 1/1
+
+    bitmap[6][1] = (bitmap[6][0] and bitmap[6][2] and coin(1 / 4)) // 0/0
+    bitmap[6][3] = (bitmap[6][2] and bitmap[6][4] and coin(1 / 4)) // 0/0
+}
+
+function Rune:getBitmap(color=nil)
+{
+    const bitmap = self.bitmap
+    const bmp = micro.Image.fromBlank(WIDTH, HEIGHT)
+    for var i = 0; i < HEIGHT; i++
+    {
+        for var j = 0; j < WIDTH; j++
+        {
+            if bitmap[i][j]
+            {
+                bmp.setPixel(j, i)
+            }
+        }
+    }
+    return bmp
+}
+
+function Rune:getWeight()
+{
+    const bitmap = self.bitmap
+    var w = 0
+    for var i = 0; i < HEIGHT; i++
+    {
+        for var j = 0; j < WIDTH; j++
+        {
+            if bitmap[i][j] { w++ }
+        }
+    }
+    return w
+}
+
+function Rune:isConnected(weight)
+{
+    const bitmap = self.bitmap
+    // Checking horizontal bounds
+    var left = false
+    var right = false
+    for var i = 0; i < HEIGHT; i++
+    {
+        left = left or bitmap[i][0]
+        right = right or bitmap[i][4]
+    }
+    if not left or not right
+    {
+        return false
+    }
+
+    // Checking vertical bounds
+    var top = false
+    var bottom = false
+    for var i = 0; i < WIDTH; i++
+    {
+        top = top or bitmap[0][i]
+        bottom = bottom or bitmap[6][i]
+    }
+    if not top or not bottom
+    {
+        return false
+    }
+
+    // Searching for dots
+    var dotx = -1
+    var doty = -1
+    for var i = 0; i < HEIGHT; i++
+    {
+        for var j = 0; j < WIDTH; j++
+        {
+            if bitmap[i][j] and self.countNeighbours(j, i) == 0
+            {
+                // It's a dot
+                if dotx == -1
+                {
+                    if self.countNeighbours(j, i, 2) == 0
+                    {
+                        // The dot is too far from other strokes
+                        return false
+                    }
+                    // It's the first dot
+                    dotx = j
+                    doty = i
+                } 
+                else
+                {
+                    // There is more than 1 dot
+                    return false
+                }
+            }
+        }
+    }
+
+    var x, y
+    // Searching for a starting point to fill
+    // which is not a dot
+    for var i = 0; i < HEIGHT; i++
+    {
+        for var j = 0; j < WIDTH; j++
+        {
+            if bitmap[i][j] and (i != doty or j != dotx)
+            {
+                x = j
+                y = i
+                break
+            }
+        }
+    }
+
+    var checked = []
+    function fill(x, y)
+    {
+        var index = x + y * WIDTH
+        if not bitmap[y][x] or checked.index(index) != nil
+        {
+            return 0
+        }
+
+        checked.add(index)
+
+        var a = 1
+        if x > 0
+        {
+            a += fill(x - 1, y)
+        }
+        if x < WIDTH - 1
+        {
+            a += fill(x + 1, y)
+        }
+        if y > 0
+        {
+            a += fill(x, y - 1)
+        }
+        if y < HEIGHT - 1
+        {
+            a += fill(x, y + 1)
+        }
+
+        return a
+    }
+
+    var a = fill(x, y)
+
+    return (a == weight or a == weight - 1)
+}
+
+function Rune:diff(another)
+{
+    const bitmap = self.bitmap
+    var r = 0
+    for var i = 0; i < HEIGHT; i++
+    {
+        var row1 = bitmap[i]
+        var row2 = another.bitmap[i]
+        for var j = 0; j < WIDTH; j++
+        {
+            if row1[j] != row2[j]
+            {
+                r++
+            }
+        }
+    }
+    return r
+}
+
+function Rune:countNeighbours(x, y, r=1)
+{
+    const bitmap = self.bitmap
+    var n = 0
+
+    if x > r - 1 and bitmap[y][x - r] { n++ }
+    if x < WIDTH - r and bitmap[y][x + r] { n++ }
+    if y > r - 1 and bitmap[y - r][x] { n++ }
+    if y < HEIGHT - r and bitmap[y + r][x] { n++ }
+
+    return n
+}
+
+function Rune:mirrorX()
+{
+    const rune = Rune.new()
+    
+    rune.bitmap = []
+    for var i = 0; i < HEIGHT; i++
+    {
+        const row = []
+        for var j = 0; j < WIDTH; j++
+        {
+            row.add(self.bitmap[i][WIDTH - j - 1])
+        }
+        rune.bitmap.add(row)
+    }
+
+    return rune
+}
+
+function Rune:mirrorY()
+{
+    const rune = Rune.new()
+
+    rune.bitmap = []
+    for var i = 0; i < HEIGHT; i++
+    {
+        const row = []
+        for var j = 0; j < WIDTH; j++
+        {
+            row.add(self.bitmap[HEIGHT - i - 1][j])
+        }
+        rune.bitmap.add(row)
+    }
+
+    return rune
+}
+
+function Rune:rotate180()
+{
+    const rune = Rune.new()
+   
+    rune.bitmap = []
+    for var i = 0; i < HEIGHT; i++
+    {
+        const row = []
+        for var j = 0; j < WIDTH; j++
+        {
+            row.add(self.bitmap[HEIGHT - i - 1][WIDTH - j - 1])
+        }
+        rune.bitmap.add(row)
+    }
+
+    return rune
+}
+
+function Rune:isSymmetric()
+{
+    const bitmap = self.bitmap
+    self.hSym = true
+    for const row in bitmap
+    {
+        if row[0] != row[4] or row[1] != row[3]
+        {
+            self.hSym = false
+            break
+        }
+    }
+
+    self.vSym = true
+    for var j = 0; j < WIDTH; j++
+    {
+        if bitmap[0][j] != bitmap[6][j] or bitmap[1][j] != bitmap[5][j] or bitmap[2][j] != bitmap[4][j]
+        {
+            self.vSym = false
+            break
+        }
+    }
+
+    return self.hSym or self.vSym
+}
+
+export {
+    Rune,
+    WIDTH,
+    HEIGHT
+}

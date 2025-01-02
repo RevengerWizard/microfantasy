@@ -1,0 +1,33 @@
+import "level" as level
+
+from "particle" import ParticleEmitter
+
+export class Effect
+{
+    new(x, y, config, duration, n=5)
+    {
+        self.x = x
+        self.y = y
+        self.timer = 0
+        self.duration = duration
+        self.particles = ParticleEmitter.new(config)
+        self.particles.setPosition(x, y)
+        self.particles.emit(n)
+        level.addEntity(self)
+    }
+
+    function update(dt)
+    {
+        self.timer += dt
+        self.particles.update(dt)
+        if self.timer >= self.duration
+        {
+            level.deleteEntity(self)
+        }
+    }
+
+    function draw(x=0, y=0)
+    {
+        self.particles.draw(x, y)
+    }
+}

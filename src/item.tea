@@ -1,0 +1,80 @@
+import math, random
+
+import "level" as level
+
+from "sprite" import Sprite
+
+export class Item
+{
+    new(x, y, name)
+    {
+        self.x = x
+        self.y = y
+        self.name = name
+        self.w = 4
+        self.h = 4
+        self.dx = 0
+        self.dy = 0
+        self.damping = 2
+        self.decel = 6
+        self.load()
+        level.addEntity(self)
+        level.addWorld(self)
+    }
+
+    function load()
+    {
+        const image = micro.Image.fromFile("asset/item/${self.name}.png")
+        self.ox = math.floor(image.getWidth() / 2)
+        self.oy = math.floor(image.getHeight() / 2)
+        self.image = image
+    }
+
+    function update(dt)
+    {
+        const world = level.getWorld()
+        const filter = level.filter
+        const gravity = level.gravity
+
+        self.dx = self.dx / (1 + self.decel * dt)
+        self.dy = self.dy / (1 + self.damping * dt)
+        self.dy = self.dy + (gravity * dt)
+
+        if self.dx != 0 or self.dy != 0
+        {
+            const res = world.move(self, self.x + self.dx, self.y + self.dy, filter)
+            self.x = res[0]
+            self.y = res[1]
+            const cols = res[2] 
+
+            if cols.len > 0
+            {
+                for var i = 0; i < cols.len; i++
+                {
+                    if cols[i]['normal']['y'] == -1
+                    {
+                        self.dy = 0
+                    }
+                    else if cols[i]['normal']['y'] == 1
+                    {
+                        self.dy = -self.dy / 4
+                    }
+                    if cols[i]['normal']['x'] != 0
+                    {
+                        self.dx = 0 //-self.dx / 2
+                    }
+                }
+            }
+        }
+    }
+
+    function draw(x=0, y=0)
+    {
+        micro.gfx.draw(self.image, (self.x) - x, (self.y) - y, nil, 0, 1, 1, self.ox, self.oy)
+    }
+
+    function tostring()
+    {
+        return "<${self.type[0].upper() + self.type[1:]} '${self.name}'>"
+    }
+}

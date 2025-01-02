@@ -1,0 +1,389 @@
+import math, random
+
+import "level" as level
+
+from "sprite" import Sprite
+from "coin" import Coin
+from "player" import Player
+
+function filterSolid(item, other)
+{
+    if item is not Map { return }
+    if item['type'] == 'solid' or item['type'] == 'platform'
+    {
+        return true
+    }
+}
+
+function filterTarget(item, other)
+{
+    if item is Player
+    {
+        return true
+    }
+}
+
+export class Enemy
+{
+    new(x, y, name)
+    {
+        self.x = x
+        self.y = y
+        self.name = name
+        self.facing = 1
+        self.w = 4
+        self.h = 4
+        self.dx = 0
+        self.dy = 0
+        self.damping = 2
+        self.decel = 4
+        self.speed = 35
+        self.flip = true
+        self.move = true
+        self.isAttacking = false
+        self.health = 3
+        self.state = 'idle'
+        self.knockbackForce = 0.8
+        self.isHit = false
+        self.hitTimer = 0
+        self.hitDuration = 0.2
+        self.behaviorTimer = 0
+        self.currentBehavior = 'patrol'
+        self.behaviors = {
+            ['patrol'] = self.patrolBehavior,
+            ['idle'] = self.idleBehavior,
+            ['attack'] = self.attackBehavior
+        }
+        self.sightRange = { left = 6, right = 6 }
+        level.addEntity(self)
+        level.addWorld(self)
+        
+        self.load()
+        self.sprite.onTagEnd('attack1', function() {
+            self.move = true 
+            self.isAttacking = false 
+        })
+    }
+
+    function load()
+    {
+        const sprite = Sprite.new("asset/character/${self.name}.aseprite", 'idle')
+        self.sprite = sprite
+        self.px = 0
+    }
+
+    // Behavior system
+    function setBehavior(behavior)
+    {
+        if behavior in self.behaviors
+        {
+            self.currentBehavior = behavior
+            self.behaviorTimer = 0
+        }
+    }
+
+    function patrolBehavior(dt)
+    {
+        if self.flip
+        {
+            self.dx = -self.speed * dt
+            self.facing = -1
+        }
+        else
+        {
+            self.dx = self.speed * dt
+            self.facing = 1
+        }
+    }
+
+    function idleBehavior(dt)
+    {
+        self.dx = 0
+        self.behaviorTimer += dt
+        if self.behaviorTimer > 2  // Idle for 2 seconds
+        {
+            self.setBehavior('patrol')
+        }
+    }
+
+    function attackBehavior(dt)
+    {
+        self.move = false
+        self.isAttacking = true
+    }
+
+    function kill()
+    {
+        level.removeEntity(self)
+        const direction = random.random() > 0.5 ? 1 : -1  // Randomly choose left or right
+        const initialSpeed = random.random() * 0.8    // Random speed between 50-80
+        const upwardSpeed = random.random() * 0.2     // Random upward boost between 40-60
+        
+        const coin = Coin.new(self.x, self.y - 5, 'coin_gold')
+        coin.dx = initialSpeed * direction
+        coin.dy = -upwardSpeed  // Negative for upward movement
+    }
+
+    function hit(amount, direction)
+    {
+        if not self.isHit
+        {
+            self.health -= amount
+            self.isHit = true
+            self.hitTimer = self.hitDuration
+
+            // Apply knockback
+            self.dx = self.knockbackForce * direction
+            self.dy = -self.knockbackForce * 1.6
+
+            if self.health <= 0
+            {
+                self.kill()
+            }
+
+            self.onHit()
+        }
+    }
+
+    function onHit() { }
+
+    function update(dt)
+    {
+        const world = level.getWorld()
+        const filter = level.filter
+        const gravity = level.gravity
+        self.sprite.update(dt)
+
+        if self.isHit
+        {
+            self.hitTimer -= dt
+            if self.hitTimer <= 0
+            {
+                self.dx *= dt
+                self.dy *= dt
+                self.isHit = false
+            }
+        }
+        
+        // Edge detection
+        const leftEdge = world.querySegment(self.x - 3, self.y, self.x - 3, self.y + 7, filterSolid)
+        const rightEdge = world.querySegment(self.x + self.w + 3, self.y, self.x + self.w + 3, self.y + 7, filterSolid)
+
+        // Check sight lines based on facing direction
+        const leftSight = world.querySegment(
+            self.x, 
+            self.y + 2, 
+            self.x - self.sightRange['left'], 
+            self.y + 2, 
+            filterTarget
+        )
+
+        const rightSight = world.querySegment(
+            self.x + 4, 
+            self.y + 2, 
+            self.x + self.sightRange['right'],
+            self.y + 2, 
+            filterTarget
+        )
+
+        const playerInSight = (self.facing == -1 and leftSight.len > 0) or 
+                            (self.facing == 1 and rightSight.len > 0)
+
+        if playerInSight
+        {
+            self.setBehavior('attack')
+        }
+        else if self.currentBehavior == 'attack' and self.isAttacking
+        {
+            self.setBehavior('patrol')
+        }
+
+        if self.move
+        {
+            if leftEdge.len == 0 { self.flip = false }
+            if rightEdge.len == 0 { self.flip = true }
+
+            self.behaviors[self.currentBehavior](dt)
+            
+            self.dx = self.dx / (1 + self.damping * dt)
+            self.dy = self.dy / (1 + self.damping * dt)
+        }
+        else
+        {
+            self.dx = 0
+        }
+        self.dy = self.dy + (gravity * dt)
+
+        if self.dx != 0 or self.dy != 0
+        {
+            const res = world.move(self, self.x + self.dx, self.y + self.dy, filter)
+            self.x = res[0]
+            self.y = res[1]
+            const cols = res[2] 
+
+            // collisions
+            if cols.len > 0
+            {
+                for var i = 0; i < cols.len; i++
+                {
+                    if cols[i]['normal']['y'] == -1
+                    {
+                        self.dy = 0
+                    }
+                    else if cols[i]['normal']['y'] == 1
+                    {
+                        self.dy = -self.dy / 4
+                    }
+                    if cols[i]['normal']['x'] != 0
+                    {
+                        self.dx = 0 //-self.dx / 2
+                    }
+                }
+            }
+        }
+
+        if not self.isAttacking
+        {
+            if self.dx != 0
+            {
+                self.state = 'run'
+            }		
+            else
+            {
+                self.state = 'idle'
+            }
+        }
+        else
+        {
+            self.state = 'attack1'
+        }
+    }
+
+    function draw(x=0, y=0)
+    {
+        self.sprite.setTag(self.state)
+        self.sprite.draw((self.x + self.px) - x, self.y - y, 0, self.facing, 1, self.ox, self.oy)
+    }
+}
+
+export class Barbarian : Enemy
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'barbarian'
+        self.enrageSpeedMultiplier = 1.5
+        self.normalSpeed = self.speed
+        self.sightRange = { left = 15, right = 17 }
+        self.behaviors['rage'] = self.rageBehavior
+    }
+
+    function load()
+    {
+        super.load()
+        self.ox = math.floor(self.sprite.getWidth() / 2) - 4
+        self.oy = math.floor(self.sprite.getHeight() / 2) + 5
+        self.px = 2
+        self.health = 50
+    }
+
+    function onHit()
+    {
+        self.speed = self.normalSpeed * self.enrageSpeedMultiplier
+        self.setBehavior('rage')
+    }
+
+    function rageBehavior(dt)
+    {
+        const playerPos = level.getPlayer()
+        if playerPos
+        {
+            const direction = playerPos.x > self.x ? 1 : -1
+            self.dx = self.speed * direction * dt
+            self.facing = direction
+            self.flip = direction == 1 ? false : true
+            self.setBehavior('attack')
+        }
+    }
+}
+
+export class Dwarf : Enemy
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'dwarf'
+        self.idleChance = 0.01  // 1% chance per update to go idle
+        self.sightRange = { left = 8, right = 10 }
+    }
+
+    function load()
+    {
+        super.load()
+        switch self.name
+        {
+            case 'dwarf'
+            {
+                self.ox = math.floor(self.sprite.getWidth() / 2) - 2
+                self.oy = math.floor(self.sprite.getHeight() / 2) + 3
+            }
+            case 'dwarf_pickaxe'
+            {
+                self.ox = math.floor(self.sprite.getWidth() / 2) - 2
+                self.oy = math.floor(self.sprite.getHeight() / 2) + 2
+            }
+        }
+        self.px = 2
+        self.speed = 28
+    }
+
+    function update(dt)
+    {
+        // Random chance to go idle during patrol
+        if self.currentBehavior == 'patrol' and random.random() < self.idleChance
+        {
+            self.setBehavior('idle')
+        }
+        
+        super.update(dt)
+    }
+}
+
+export class Oldman : Enemy
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'oldman'
+    }
+
+    function load()
+    {
+        super.load()
+        self.ox = math.floor(self.sprite.getWidth() / 2) - 2
+        self.oy = math.floor(self.sprite.getHeight() / 2) + 3
+        self.px = 2
+        self.speed = 12
+        self.health = 1
+    }
+}
+
+export class Wizard : Enemy
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'wizard'
+        self.sightRange = { left = 50, right = 50 }
+    }
+
+    function load()
+    {
+        super.load()
+        self.ox = math.floor(self.sprite.getWidth() / 2) - 7
+        self.oy = math.floor(self.sprite.getHeight() / 2) + 4
+        self.px = 2
+        self.speed = 3
+        self.health = 50
+    }
+}

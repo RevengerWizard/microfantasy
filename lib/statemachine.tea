@@ -1,0 +1,13 @@
+export class StateMachine
+{
+    new(options)
+    {
+        assert('events' in options, "Must specify events")
+
+        self.options = options
+        self.current = options.get('initial', 'none')
+        self.events = {}
+
+        
+    }
+}

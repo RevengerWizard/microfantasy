@@ -1,0 +1,131 @@
+import math, random
+
+import "lib/bump" as bump
+import "src/level" as level
+import "src/debug" as debug
+
+from "src/player" import Player
+from "src/camera" import Camera
+
+var x = 80, y = 55
+
+var music
+var map
+var camera
+var player
+var debug1 = false
+var debug2 = false
+var mx, my = 0, 0
+
+function micro.load()
+{
+    /*var flameConfig = {
+        imagePath = "asset/particle_fire.png",
+        position = {x = 100, y = 100},
+        spawnRate = 0.001,
+        velocityRange = {minX = -0.4, maxX = 0.4, minY = -24.5, maxY = -18.4},
+        lifetimeRange = {min = 0.4, max = 1.5},
+        gravity = {x = 8, y = -8},
+        spread = {x = 0, y = 0},
+        maxParticles = 30,
+        sizeRange = {min = 1, max = 1},
+        rotationSpeed = {min = -math.pi, max = math.pi},
+        turbulence = {x = 3.2, y = 1.5},
+        emissionShape = "point",
+        emissionRadius = 90,
+        fadeInTime = 0.1,
+        fadeOutTime = 0.1
+    }
+    emitter = ParticleEmitter.new(flameConfig)*/
+
+    const world = bump.newWorld(16)
+    level.setWorld(world)
+    level.load("tilemap/platform")
+
+    player = Player.new(x, y, "basic_green")
+
+    camera = Camera.new(0, 0, {
+        speed = 180,
+        damping = 0.16,
+        deadZoneWidth = 18,
+        deadZoneHeight = 24,
+    })
+    camera.follow(player)
+
+    music = micro.Source.fromData(
+        micro.Data.fromFile("sound/microfantasytheme.ogg"))
+    music.setLoop(true)
+
+    micro.gfx.setClearColor(41, 30, 49)
+}
+
+function micro.update(dt)
+{
+    level.update(dt)
+    camera.update(dt)
+
+    if player.y > 210
+    {
+        const world = level.getWorld()
+        player.x = x
+        player.y = y
+        player.dx = 0
+        player.dy = 0
+        world.update(player, x, y)
+    }
+
+    mx = micro.mouse.getX()
+    my = micro.mouse.getY()
+
+    debug.setOffset(camera.x, camera.y)
+}
+
+function micro.draw()
+{
+    const x = camera.x
+    const y = camera.y
+    level.draw(math.ceil(x), math.ceil(y))
+
+    micro.gfx.print("${mx}, ${my}", mx + 3, my - 5)
+    micro.gfx.pixel(mx, my)
+
+    debug.draw()
+}
+
+function micro.quit()
+{
+    print("window quitter")
+}
+
+var fs = false
+
+function micro.textinput(text)
+{
+    debug._event("textinput", text)
+}
+
+function micro.keydown(key)
+{
+    if key == 'escape'
+    {
+        micro.event.quit()
+    }
+
+    debug._event("keydown", key)
+
+    if key == 'f11'
+    {
+        fs = not fs
+        micro.window.setFullscreen(fs)
+    }
+    if key == 'f3'
+    {
+        debug1 = not debug1
+        debug.setVisible(debug1)
+    }
+    if debug1 and key == 'f2'
+    {
+        debug2 = not debug2
+        debug.setFocused(debug2)
+    }
+}

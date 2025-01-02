@@ -1,0 +1,76 @@
+import math
+
+import "level" as level
+
+from "sprite" import Sprite
+from "item" import Item
+from "effect" import Effect
+
+export class Coin : Item
+{
+    new(x, y, name) 
+    {
+        super(x, y, name)
+        self.type = 'coin'
+
+        self.effect = {
+            imagePath = "asset/particle_coin.png",
+            position = {x = 0, y = 0},  // Will be set when picked up
+            spawnRate = 0.01,
+            velocityRange = {
+                minX = -30,
+                maxX = 30,
+                minY = -30,
+                maxY = 30
+            },
+            lifetimeRange = {
+                min = 0.3,
+                max = 0.6
+            },
+            gravity = {x = 0, y = -10},
+            spread = {x = 5, y = 5},
+            maxParticles = 10,
+            sizeRange = {
+                min = 0.5,
+                max = 1.0
+            },
+            rotationSpeed = {
+                min = -math.pi,
+                max = math.pi
+            },
+            turbulence = {x = 5, y = 5},
+            emissionShape = "circle",
+            emissionRadius = 8,
+            fadeInTime = 0.1,
+            fadeOutTime = 0.2
+        }
+        
+        self.sound = micro.Source.fromData(micro.Data.fromFile("sound/coinpickup.ogg"))
+    }
+    
+    function load()
+    {
+        const sprite = Sprite.new("asset/item/${self.name}.aseprite", 'idle')
+        self.ox = math.floor(sprite.getWidth() / 2)
+        self.oy = math.floor(sprite.getHeight() / 2)
+        self.sprite = sprite
+    }
+
+    function update(dt)
+    {
+        super.update(dt)
+        self.sprite.update(dt)
+    }
+
+    function draw(x=0, y=0)
+    {
+        self.sprite.draw(self.x - x, self.y - y, 0, 1, 1, self.ox, self.oy)
+    }
+
+    function pick()
+    {
+        level.removeEntity(self)
+        Effect.new(self.x, self.y, self.effect, 0.8, 12)
+        self.sound.play()
+    }
+}

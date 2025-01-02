@@ -1,0 +1,56 @@
+import math
+
+import "level" as level
+
+from "item" import Item
+from "effect" import Effect
+
+export class Potion : Item 
+{
+    new(x, y, name)
+    {
+        super(x, y, name)
+        self.type = 'potion'
+
+        self.effect = {
+            imagePath = "asset/particle_${self.name[7:]}.png",
+            position = {x = 0, y = 0},
+            spawnRate = 0.01,
+            velocityRange = {
+                minX = -20,
+                maxX = 20,
+                minY = -30,
+                maxY = 10
+            },
+            lifetimeRange = {
+                min = 0.2,
+                max = 0.5
+            },
+            gravity = {x = 0, y = 15},    // Reduced gravity for smaller arcs
+            spread = {x = 4, y = 4},      // Tighter spread
+            maxParticles = 8,             // Fewer particles
+            sizeRange = {
+                min = 0.3,
+                max = 0.8
+            },
+            rotationSpeed = {
+                min = -math.pi,
+                max = math.pi
+            },
+            turbulence = {x = 4, y = 4},  // Reduced turbulence
+            emissionShape = "circle",
+            emissionRadius = 5,           // Smaller emission radius
+            fadeInTime = 0.05,
+            fadeOutTime = 0.2             // Shorter fade out
+        }
+
+        self.sound = micro.Source.fromData(micro.Data.fromFile("sound/itempickup.ogg"))
+    }
+
+    function pick()
+    {
+        level.removeEntity(self)
+        Effect.new(self.x, self.y, self.effect, 0.8)
+        self.sound.play()
+    }
+}

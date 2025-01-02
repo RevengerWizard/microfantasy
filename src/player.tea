@@ -1,0 +1,344 @@
+import math
+
+import "level" as level
+
+from "sprite" import Sprite
+
+export class Player
+{
+    new(x, y, name)
+    {
+        self.x = x
+        self.y = y
+        self.name = name
+        self.type = 'player'
+        self.w = 4
+        self.h = 4
+        self.sx = 1
+        self.dx = 0
+        self.dy = 0
+        self.initVel = 3 // 4 / 3
+        self.speed = 45
+        self.damping = 2
+        self.maxVel = 3.5 // 2; 3.5
+        self.decel = 4
+        self.isJump = false
+        self.isGround = false
+        self.isClimb = false
+        self.state = 'idle'
+        self.isStairs = false
+        self.weapon = nil
+        self.hasWeapon = false
+        self.defaultSprite = nil
+        self.weaponSprite = nil
+        self.isHit = false
+        self.hitTimer = 0
+        self.hitDuration = 0.2
+        self.load()
+        level.addPlayer(self)
+        level.addWorld(self)
+    }
+
+    function load()
+    {
+        const path = "asset/character/${self.name}.aseprite"
+        const sprite = Sprite.new(path, 'idle')
+        self.ox = math.floor(sprite.getWidth() / 2)
+        self.oy = math.floor(sprite.getHeight() / 2) + 3
+        self.px = 2
+        self.defaultSprite = sprite
+        self.sprite = self.defaultSprite
+    }
+
+    function hit()
+    {
+        if not self.isHit
+        {
+            self.isHit = true
+            self.hitTimer = self.hitDuration
+
+            self.dx = 75
+            self.dy = -75
+        }
+    }
+
+    function updateSprite()
+    {
+        // Switch sprites based on state
+        if self.isClimb
+        {
+            self.sprite = self.defaultSprite
+        }
+        else if self.hasWeapon
+        {
+            self.sprite = self.weaponSprite
+        }
+        else
+        {
+            self.sprite = self.defaultSprite
+        }
+    }
+
+    function interact(item)
+    {
+        switch item.type
+        {
+            case 'chest'
+            {
+                item.open()
+            }
+            case 'coin', 'potion'
+            {
+                item.pick()
+            }
+            case 'key'
+            {
+                item.setTarget(self)
+            }
+            case 'weapon'
+            {
+                if micro.keyboard.wasPressed('e')
+                {
+                    if self.hasWeapon
+                    {
+                        self.weapon.drop(self.x, self.y - 4)
+                    }
+                    self.weapon = item
+                    self.hasWeapon = true
+                    level.removeEntity(item)
+                    self.weaponSprite = self.weapon.loadSprite(self)
+                    self.updateSprite()
+                }
+            }
+        }
+    }
+
+    function update(dt)
+    {
+        const world = level.getWorld()
+        const filter = level.filter
+        const gravity = level.gravity
+        self.sprite.update(dt)
+
+        self.isClimb = false
+
+        // interaction
+        const items = world.queryRect(self.x, self.y, self.w, self.h, function(item, other) {
+            if item is not Player
+            {
+                return true
+            }
+        })
+
+        if items.len > 0
+        {
+            for var i = 0; i < items.len; i++
+            {
+                const item = items[i]
+                if item is Map
+                {
+                    if item['type'] == 'stair'
+                    {
+                        if (self.hasWeapon and not self.weapon.isAttacking) 
+                            or not self.hasWeapon
+                        {
+                            self.isClimb = true
+                        }
+                    }
+                }
+                else
+                {
+                    self.interact(item)
+                }
+            }
+        }
+
+        if self.isHit
+        {
+            self.hitTimer -= dt
+            if self.hitTimer <= 0
+            {
+                self.dx *= dt
+                self.dy *= dt
+                self.isHit = false
+            }
+        }
+
+        if not self.isClimb
+        {
+            if micro.keyboard.isDown('left')
+            {
+                self.dx = -self.speed * dt
+            }
+            else if micro.keyboard.isDown('right')
+            {
+                self.dx = self.speed * dt
+            }
+
+            if not micro.keyboard.isDown('left') and (self.dx < 0)
+            {
+                self.dx = math.min(self.dx + self.decel * dt, 0)
+            }
+            else if not micro.keyboard.isDown('right') and (self.dx > 0)
+            {
+                self.dx = math.max(self.dx - self.decel * dt, 0)
+            }
+        
+            // this blocks our velocity to maxVel
+            const v = math.sqrt(self.dx * self.dx + self.dy * self.dy)
+            if v > self.maxVel
+            {
+                const vs = self.maxVel / v
+                self.dx = self.dx * vs
+                self.dy = self.dy * vs
+            }
+        
+            // these 2 lines handle damping (aka friction)
+            self.dx = self.dx / (1 + self.damping * dt)
+            self.dy = self.dy / (1 + self.damping * dt)
+        
+            if micro.keyboard.wasPressed('up') and (not self.isJump) and self.isGround
+            {
+                self.isJump = true
+                self.isGround = false
+                self.dy = -self.initVel
+            }
+            else if not micro.keyboard.wasPressed('up') and self.isJump
+            {
+                self.isJump = false
+            }
+
+            self.dy = self.dy + (gravity * dt)
+
+            if self.hasWeapon
+            {
+                if micro.keyboard.wasPressed('b') and not self.weapon.isAttacking
+                {
+                    self.weapon.attack()
+                }
+            }
+        }
+        else
+        {
+            if micro.keyboard.isDown('left')
+            {
+                self.dx = -(self.speed / 1.5) * dt
+            }
+            else if micro.keyboard.isDown('right')
+            {
+                self.dx = (self.speed / 1.5) * dt
+            }
+            else
+            {
+                self.dx = 0
+            }
+
+            if micro.keyboard.isDown('up')
+            {
+                self.dy = -(self.speed / 1.5) * dt
+            }
+            else if micro.keyboard.isDown('down')
+            {
+                self.dy = (self.speed / 1.5) * dt
+            }
+            else
+            {
+                self.dy = 0
+            }
+        }
+
+        if self.dx != 0 or self.dy != 0
+        {
+            const res = world.move(self, self.x + self.dx, self.y + self.dy, filter)
+            self.x = res[0]
+            self.y = res[1]
+            const cols = res[2]
+
+            // collisions
+            if cols.len > 0 and (not self.isJump) and (not self.isClimb)
+            {
+                for var i = 0; i < cols.len; i++
+                {
+                    if cols[i]['normal']['y'] == -1
+                    {
+                        self.dy = 0
+                        self.isGround = true
+                        self.isJump = false
+                    }
+                    else if cols[i]['normal']['y'] == 1
+                    {
+                        self.dy = -self.dy / 4
+                        self.isGround = false
+                        self.isJump = true
+                    }
+                    if cols[i]['normal']['x'] != 0
+                    {
+                        self.dx = 0
+                    }
+                }
+            }
+            else
+            {
+                self.isGround = false
+            }
+        }
+
+        if self.hasWeapon and self.weapon.isAttacking
+        {
+            self.state = self.weapon.state
+        }
+        else if self.isClimb and self.dy != 0
+        {
+            self.state = 'climb'
+            self.isStairs = false
+        }
+        else if self.isClimb and self.dy == 0
+        {
+            self.state = 'climb'
+            self.isStairs = true
+        }
+        else if self.dx != 0
+        {
+            self.state = 'run'
+        }
+        else if not self.isJump
+        {
+            self.state = 'idle'
+        }
+
+        // Update sprite after state changes
+        self.updateSprite()
+    }
+
+    function draw(x=0, y=0)
+    {
+        if self.state == 'climb'
+        {
+            self.sprite.setTag(self.state)
+            if self.isStairs
+            {
+                self.sprite.pause()
+            }
+            else
+            {
+                self.sprite.play()
+            }
+        }
+        else
+        {
+            if self.dx < 0
+            {
+                self.sx = -1
+            }
+            else if self.dx > 0
+            {
+                self.sx = 1
+            }
+            self.sprite.play()
+            self.sprite.setTag(self.state)
+        }
+        
+        self.sprite.draw((self.x + self.px) - x, self.y - y,
+                            0, self.sx, 1, self.ox, self.oy)
+    }
+}

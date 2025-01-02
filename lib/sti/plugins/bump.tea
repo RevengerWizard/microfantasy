@@ -1,0 +1,70 @@
+export function bump_init(map, world)
+{
+    const collidables = []
+    for const layer in map.layers
+    {
+        if layer['type'] == "objectgroup"
+        {
+            for const obj in layer['objects']
+            {
+                if layer.get('properties') and
+                    layer['properties'].get('collidable') == true or
+                    obj.get('properties') and
+                    obj['properties'].get('collidable') == true
+                    and obj['shape'] == 'rectangle'
+                {
+                    const t = {
+                        name = obj['name'],
+                        type = obj['type'],
+                        x = obj['x'],
+                        y = obj['y'],
+                        width = obj['width'],
+                        height = obj['height'],
+                        layer = layer,
+                        properties = obj.get('properties', {})
+                    }
+
+                    if obj.get("gid")
+                    {
+                        t['y'] = t['y'] - obj['height']
+                    }
+
+                    world.add(t, t['x'], t['y'], t['width'], t['height'])
+                    collidables.add(t)
+                }
+            }
+        }
+    }
+
+    map.bump_world = world
+    map.bump_collidables = collidables
+}
+
+export function bump_removeLayer(map, index)
+{
+    const layer = map.layers[index]
+    const collidables = map.bump_collidables
+
+    // Remove collision objects
+    for var i = collidables.length - 1; i >= 0; i--
+    {
+        const obj = collidables[i]
+        
+        if obj.layer == layer and
+            (layer.properties.collidable == true or obj.properties.collidable == true)
+        {
+            map.bump_world.remove(obj)
+            collidables.delete(i)
+        }
+    }
+}
+
+export function bump_draw(map, tx=0, ty=0)
+{
+    const items = map.bump_world.getItems()
+    for const item in items
+    {
+        const x, y, w, h = map.bump_world.getRect(item)
+        micro.gfx.rect("line", x - tx, y - ty, w, h)
+    }
+}
