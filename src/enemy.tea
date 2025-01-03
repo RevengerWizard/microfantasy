@@ -6,7 +6,7 @@ from "sprite" import Sprite
 from "coin" import Coin
 from "player" import Player
 
-function filterSolid(item, other)
+export function filterSolid(item, other)
 {
     if item is not Map { return }
     if item['type'] == 'solid' or item['type'] == 'platform'
@@ -59,10 +59,7 @@ export class Enemy
         level.addWorld(self)
         
         self.load()
-        self.sprite.onTagEnd('attack1', function() {
-            self.move = true 
-            self.isAttacking = false 
-        })
+        self.loadEvents()
     }
 
     function load()
@@ -70,6 +67,14 @@ export class Enemy
         const sprite = Sprite.new("asset/character/${self.name}.aseprite", 'idle')
         self.sprite = sprite
         self.px = 0
+    }
+
+    function loadEvents()
+    {
+        self.sprite.onTagEnd(self.attackName, function() {
+            self.move = true 
+            self.isAttacking = false 
+        })
     }
 
     // Behavior system
@@ -255,7 +260,7 @@ export class Enemy
         }
         else
         {
-            self.state = 'attack1'
+            self.state = self.attackName
         }
     }
 
@@ -270,6 +275,7 @@ export class Barbarian : Enemy
 {
     new(x, y, name)
     {
+        self.attackName = 'attack1'
         super(x, y, name)
         self.type = 'barbarian'
         self.enrageSpeedMultiplier = 1.5
@@ -311,6 +317,7 @@ export class Dwarf : Enemy
 {
     new(x, y, name)
     {
+        self.attackName = 'attack1'
         super(x, y, name)
         self.type = 'dwarf'
         self.idleChance = 0.01  // 1% chance per update to go idle
@@ -353,6 +360,7 @@ export class Oldman : Enemy
 {
     new(x, y, name)
     {
+        self.attackName = 'attack1'
         super(x, y, name)
         self.type = 'oldman'
     }
@@ -365,25 +373,5 @@ export class Oldman : Enemy
         self.px = 2
         self.speed = 12
         self.health = 1
-    }
-}
-
-export class Wizard : Enemy
-{
-    new(x, y, name)
-    {
-        super(x, y, name)
-        self.type = 'wizard'
-        self.sightRange = { left = 50, right = 50 }
-    }
-
-    function load()
-    {
-        super.load()
-        self.ox = math.floor(self.sprite.getWidth() / 2) - 7
-        self.oy = math.floor(self.sprite.getHeight() / 2) + 4
-        self.px = 2
-        self.speed = 3
-        self.health = 50
     }
 }

@@ -1,0 +1,125 @@
+import math
+
+import "level" as level
+
+from "enemy" import Enemy, filterSolid
+
+export class Wizard : Enemy
+{
+    new(x, y, name)
+    {
+        self.attackName = 'attack_laser'
+        super(x, y, name)
+        self.type = 'wizard'
+        self.sightRange = { left = 50, right = 50 }
+        self.laserWidth = 5
+        self.laserRange = 200
+        self.isLaserActive = false
+        self.laserEndX = 0
+        self.laserEndY = 0
+
+        // Color patterns for the laser
+        self.laserColors = [
+            { lines = [255, 255, 255], rect = [246, 230, 161] },
+            { lines = [246, 230, 161], rect = [234, 74, 110] },
+            { lines = [234, 74, 110], rect = [246, 230, 161] }
+        ]
+        self.currentColorIndex = 0
+    }
+
+    function load()
+    {
+        super.load()
+        self.ox = math.floor(self.sprite.getWidth() / 2) - 7
+        self.oy = math.floor(self.sprite.getHeight() / 2) + 4
+        self.px = 2
+        self.speed = 3
+        self.health = 50
+    }
+
+    function loadEvents()
+    {
+        super.loadEvents()
+        function laser(idx)
+        {
+            self.isLaserActive = idx >= 25 and idx < 33
+            if self.isLaserActive
+            {
+                self.currentColorIndex = (idx - 25) % self.laserColors.len
+            }
+        }
+        self.sprite.onTag(self.attackName, laser)
+    }
+
+    function updateLaser(dt)
+    {
+        if not self.isLaserActive { return }
+
+        // Get the starting point of the laser
+        const laserStartX = self.facing == 1 ? self.x + self.w + 2 : self.x - 4
+        const laserStartY = self.y
+
+        // Calculate end point based on facing direction
+        const laserEndX = self.facing == 1 ? 
+            laserStartX + self.laserRange : 
+            laserStartX - self.laserRange
+
+        // Check for collision with solid objects
+        const world = level.getWorld()
+        const laserHit = world.querySegment(
+            laserStartX,
+            laserStartY,
+            laserEndX,
+            laserStartY,
+            filterSolid
+        )
+
+        self.laserEndX = laserHit.len > 0 ? laserHit[0]['item']['x'] : laserEndX
+        self.laserEndY = laserStartY
+    }
+
+    function drawLaser(x, y)
+    {
+        if not self.isLaserActive { return }
+
+        const startX = (self.x + (self.facing == 1 ? self.w + 2 : -4)) - x
+        const startY = self.y - y
+        const endX = self.laserEndX - x
+        const endY = self.laserEndY - y
+
+        const colors = self.laserColors[self.currentColorIndex]
+        
+        const color1 = colors['rect']
+        const color2 = colors['lines']
+        micro.gfx.setColor(color1[0], color1[1], color1[2])
+
+        const width = math.abs(endX - startX)
+        const rectX = self.facing == 1 ? startX : endX
+
+        micro.gfx.rect(
+            'fill',
+            rectX,
+            startY - 1,
+            width,
+            3
+        )
+        micro.gfx.setColor()
+
+        micro.gfx.setColor(color2[0], color2[1], color2[2])
+        micro.gfx.line(startX, startY - 2, endX, endY - 2)
+        micro.gfx.line(startX, startY + 2, endX, endY + 2)
+        micro.gfx.setColor()
+    }
+
+    function update(dt)
+    {
+        super.update(dt)
+        self.updateLaser(dt)
+    }
+
+    function draw(x=0, y=0)
+    {
+        super.draw(x, y)
+        self.drawLaser(x, y)
+    }
+}

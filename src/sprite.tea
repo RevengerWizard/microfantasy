@@ -40,6 +40,7 @@ export class Sprite
         self.callback_onLoop = nil
         self.callback_onFrame = {}
         self.callback_onTagEnd = {}
+        self.callback_onTag = {}
 
         if init_tag
         {
@@ -99,6 +100,14 @@ export class Sprite
     {
         assert(typeof(frame) == 'number', "Frame must be a number!")
         self.callback_onFrame[frame] = fn
+    }
+
+    // Add callback that runs every frame while a specific tag is active
+    function onTag(tag, fn)
+    {
+        assert(typeof(tag) == 'string', "Tag must be a string!")
+        assert(tag in self.tags, "Tag " + tag + " not found in tags!")
+        self.callback_onTag[tag] = fn
     }
 
     function onTagEnd(tag, fn)
@@ -227,6 +236,11 @@ export class Sprite
         if self.frameIndex in self.callback_onFrame
         {
             self.callback_onFrame[self.frameIndex](self.tagname)
+        }
+
+        if self.tagname in self.callback_onTag
+        {
+            self.callback_onTag[self.tagname](self.frameIndex)
         }
 
         // Looping
