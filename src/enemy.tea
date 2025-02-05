@@ -46,7 +46,9 @@ export class Enemy
         self.knockbackForce = 0.8
         self.isHit = false
         self.hitTimer = 0
-        self.hitDuration = 0.2
+        self.hitDuration = 0.18
+        self.knockbackDx = 0
+        self.knockbackDy = 0
         self.behaviorTimer = 0
         self.currentBehavior = 'patrol'
         self.behaviors = {
@@ -138,8 +140,8 @@ export class Enemy
             self.hitTimer = self.hitDuration
 
             // Apply knockback
-            self.dx = self.knockbackForce * direction
-            self.dy = -self.knockbackForce * 1.6
+            self.knockbackDx = self.knockbackForce * direction
+            self.knockbackDy = -0.58
 
             if self.health <= 0
             {
@@ -159,17 +161,6 @@ export class Enemy
         const gravity = level.gravity
         self.sprite.update(dt)
 
-        if self.isHit
-        {
-            self.hitTimer -= dt
-            if self.hitTimer <= 0
-            {
-                self.dx *= dt
-                self.dy *= dt
-                self.isHit = false
-            }
-        }
-        
         // Edge detection
         const leftEdge = world.querySegment(self.x - 3, self.y, self.x - 3, self.y + 7, filterSolid)
         const rightEdge = world.querySegment(self.x + self.w + 3, self.y, self.x + self.w + 3, self.y + 7, filterSolid)
@@ -203,20 +194,41 @@ export class Enemy
             self.setBehavior('patrol')
         }
 
-        if self.move
+        if self.isHit
         {
-            if leftEdge.len == 0 { self.flip = false }
-            if rightEdge.len == 0 { self.flip = true }
+            self.hitTimer -= dt
 
-            self.behaviors[self.currentBehavior](dt)
-            
-            self.dx = self.dx / (1 + self.damping * dt)
-            self.dy = self.dy / (1 + self.damping * dt)
+            self.dx = self.knockbackDx
+            self.dy = self.knockbackDy
+
+            self.knockbackDx = self.knockbackDx / (1 + self.damping * dt)
+            self.knockbackDy = self.knockbackDy / (1 + self.damping * dt)
+
+            if self.hitTimer <= 0
+            {
+                self.isHit = false
+                self.knockbackDx = 0
+                self.knockbackDy = 0
+            }
         }
         else
         {
-            self.dx = 0
+            if self.move
+            {
+                if leftEdge.len == 0 { self.flip = false }
+                if rightEdge.len == 0 { self.flip = true }
+
+                self.behaviors[self.currentBehavior](dt)
+                
+                self.dx = self.dx / (1 + self.damping * dt)
+                self.dy = self.dy / (1 + self.damping * dt)
+            }
+            else
+            {
+                self.dx = 0
+            }
         }
+
         self.dy = self.dy + (gravity * dt)
 
         if self.dx != 0 or self.dy != 0

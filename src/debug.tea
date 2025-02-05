@@ -116,6 +116,26 @@ export function draw()
     }
 }
 
+function addIndicator(fn, min=0, max=0)
+{
+    const str, num = fn()
+    if typeof(str) != "string" or typeof(num) != "number"
+    {
+        error("expected indicator function to return string and number")
+    }
+    if min and typeof(min) != "number"
+    {
+        error("expected `min` to be a number")
+    }
+    if max and typeof(max) != "number"
+    {
+        error("expected `max` to be a number")
+    }
+    const indicator = newIndicator(fn, min, max)
+    indicators.add(indicator)
+    return indicator
+}
+
 function init()
 {
     font = micro.Font.fromEmbedded(8)
@@ -154,31 +174,11 @@ export function getFocused()
     return focused
 }
 
-function addIndicator(fn, min=0, max=0)
-{
-    const str, num = fn()
-    if typeof(str) != "string" or typeof(num) != "number"
-    {
-        error("expected indicator function to return string and number")
-    }
-    if min and typeof(min) != "number"
-    {
-        error("expected `min` to be a number")
-    }
-    if max and typeof(max) != "number"
-    {
-        error("expected `max` to be a number")
-    }
-    const indicator = newIndicator(fn, min, max)
-    indicators.add(indicator)
-    return indicator
-}
-
 function removeIndicator(indicator)
 {
     const idx = indicators.index(indicator)
     if idx != -1
     {
-        indicators.delete(i)
+        indicators.delete(idx)
     }
 }

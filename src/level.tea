@@ -57,14 +57,6 @@ const entityMap = {
     axe = Axe
 }
 
-export function load(name)
-{
-    from "../${name}" import data
-    tilemap = sti.load(data)
-    sti.plugin.bump_init(tilemap, world)
-    spawn()
-}
-
 function spawn()
 {
     var objects
@@ -93,6 +85,14 @@ function spawn()
     Sword.new(105, 70, "sword")
     Axe.new(95, 70, "axe")
     Wizard.new(35, 40, "wizard_red_staff")
+}
+
+export function load(name)
+{
+    from "../${name}" import data
+    tilemap = sti.load(data)
+    sti.plugin.bump_init(tilemap, world)
+    spawn()
 }
 
 export function update(dt)

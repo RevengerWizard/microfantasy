@@ -34,6 +34,7 @@ export class Player
         self.isHit = false
         self.hitTimer = 0
         self.hitDuration = 0.2
+        self.jumpSound = micro.Source.fromData(micro.Data.fromFile("sound/jump.ogg"))
         self.load()
         level.addPlayer(self)
         level.addWorld(self)
@@ -202,6 +203,7 @@ export class Player
                 self.isJump = true
                 self.isGround = false
                 self.dy = -self.initVel
+                self.jumpSound.play()
             }
             else if not micro.keyboard.wasPressed('up') and self.isJump
             {
