@@ -22,10 +22,10 @@ class Rune
         do
         {
             self.bitmap = []
-            for var i = 0; i < HEIGHT; i++
+            for var i = 0; i < HEIGHT; i += 1
             {
                 const row = []
-                for var j = 0; j < WIDTH; j++
+                for var j = 0; j < WIDTH; j += 1
                 {
                     row.add(false)
                 }
@@ -133,9 +133,9 @@ function Rune:getBitmap(color=nil)
 {
     const bitmap = self.bitmap
     const bmp = micro.Image.fromBlank(WIDTH, HEIGHT)
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             if bitmap[i][j]
             {
@@ -150,11 +150,11 @@ function Rune:getWeight()
 {
     const bitmap = self.bitmap
     var w = 0
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
-            if bitmap[i][j] { w++ }
+            if bitmap[i][j] { w += 1 }
         }
     }
     return w
@@ -166,7 +166,7 @@ function Rune:isConnected(weight)
     // Checking horizontal bounds
     var left = false
     var right = false
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
         left = left or bitmap[i][0]
         right = right or bitmap[i][4]
@@ -179,7 +179,7 @@ function Rune:isConnected(weight)
     // Checking vertical bounds
     var top = false
     var bottom = false
-    for var i = 0; i < WIDTH; i++
+    for var i = 0; i < WIDTH; i += 1
     {
         top = top or bitmap[0][i]
         bottom = bottom or bitmap[6][i]
@@ -192,9 +192,9 @@ function Rune:isConnected(weight)
     // Searching for dots
     var dotx = -1
     var doty = -1
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             if bitmap[i][j] and self.countNeighbours(j, i) == 0
             {
@@ -222,9 +222,9 @@ function Rune:isConnected(weight)
     var x, y
     // Searching for a starting point to fill
     // which is not a dot
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             if bitmap[i][j] and (i != doty or j != dotx)
             {
@@ -276,15 +276,15 @@ function Rune:diff(another)
 {
     const bitmap = self.bitmap
     var r = 0
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
         var row1 = bitmap[i]
         var row2 = another.bitmap[i]
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             if row1[j] != row2[j]
             {
-                r++
+                r += 1
             }
         }
     }
@@ -296,10 +296,10 @@ function Rune:countNeighbours(x, y, r=1)
     const bitmap = self.bitmap
     var n = 0
 
-    if x > r - 1 and bitmap[y][x - r] { n++ }
-    if x < WIDTH - r and bitmap[y][x + r] { n++ }
-    if y > r - 1 and bitmap[y - r][x] { n++ }
-    if y < HEIGHT - r and bitmap[y + r][x] { n++ }
+    if x > r - 1 and bitmap[y][x - r] { n += 1 }
+    if x < WIDTH - r and bitmap[y][x + r] { n += 1 }
+    if y > r - 1 and bitmap[y - r][x] { n += 1 }
+    if y < HEIGHT - r and bitmap[y + r][x] { n += 1 }
 
     return n
 }
@@ -309,10 +309,10 @@ function Rune:mirrorX()
     const rune = Rune.new()
     
     rune.bitmap = []
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
         const row = []
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             row.add(self.bitmap[i][WIDTH - j - 1])
         }
@@ -327,10 +327,10 @@ function Rune:mirrorY()
     const rune = Rune.new()
 
     rune.bitmap = []
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
         const row = []
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             row.add(self.bitmap[HEIGHT - i - 1][j])
         }
@@ -345,10 +345,10 @@ function Rune:rotate180()
     const rune = Rune.new()
    
     rune.bitmap = []
-    for var i = 0; i < HEIGHT; i++
+    for var i = 0; i < HEIGHT; i += 1
     {
         const row = []
-        for var j = 0; j < WIDTH; j++
+        for var j = 0; j < WIDTH; j += 1
         {
             row.add(self.bitmap[HEIGHT - i - 1][WIDTH - j - 1])
         }
@@ -372,7 +372,7 @@ function Rune:isSymmetric()
     }
 
     self.vSym = true
-    for var j = 0; j < WIDTH; j++
+    for var j = 0; j < WIDTH; j += 1
     {
         if bitmap[0][j] != bitmap[6][j] or bitmap[1][j] != bitmap[5][j] or bitmap[2][j] != bitmap[4][j]
         {

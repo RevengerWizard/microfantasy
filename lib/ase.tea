@@ -170,7 +170,7 @@ function grab_palette(file)
     // Skip
     read_num(file, BYTE, 8)
 
-    for var i = 0; i < palette['entry_size']; i++
+    for var i = 0; i < palette['entry_size']; i += 1
     {
         const has_name = read_num(file, WORD)
 
@@ -199,7 +199,7 @@ function grab_old_palette(file)
     palette['packets'] = read_num(file, WORD)
     palette['colors_packet'] = []
 
-    for var i = 0; i < palette['packets']; i++
+    for var i = 0; i < palette['packets']; i += 1
     {
         palette['colors_packet'].add({
             entries = read_num(file, BYTE),
@@ -213,7 +213,7 @@ function grab_old_palette(file)
             palette['colors_packet'][i]['number'] == 256
         }
 
-        for var j = 0; j < palette['colors_packet'][i]['number']; j++
+        for var j = 0; j < palette['colors_packet'][i]['number']; j += 1
         {
             palette['colors_packet'][i][j] = [
                 read_num(file, BYTE),
@@ -267,7 +267,7 @@ function grab_cel(file, size)
             cel['height'] = read_num(file, WORD)
             cel['data'] = []
 
-            for var i = 0; i < cel['width'] * cel['height']; i++
+            for var i = 0; i < cel['width'] * cel['height']; i += 1
             {
                 cel['data'].add([
                     read_num(file, BYTE),
@@ -301,7 +301,7 @@ function grab_cel(file, size)
             read_num(file, BYTE, 10)
 
             cel['data'] = []
-            for var i = 0; i < cel['width'] * cel['height']; i++
+            for var i = 0; i < cel['width'] * cel['height']; i += 1
             {
                 cel['data'].add([read_num(file, DWORD)])
             }
@@ -321,7 +321,7 @@ function grab_tags(file)
     // Skip
     read_num(file, BYTE, 8)
 
-    for var i = 0; i < tags['number']; i++
+    for var i = 0; i < tags['number']; i += 1
     {
         tags['tags'].add({
             start = read_num(file, WORD),
@@ -350,7 +350,7 @@ function grab_slice(file)
 
     slice['name'] = read_string(file)
 
-    for var i = 0; i < slice['key_numbers']; i++
+    for var i = 0; i < slice['key_numbers']; i += 1
     {
         slice['keys'].add({
             frame = read_num(file, DWORD),
@@ -487,12 +487,12 @@ export function load(src)
     ase['header'] = grab_header(file)
 
     // Parse frames
-    for var i = 0; i < ase['header']['frames_number']; i++
+    for var i = 0; i < ase['header']['frames_number']; i += 1
     {
         ase['header']['frames'].add(grab_frame_header(file))
 
         // Parse frames chunks
-        for var j = 0; j < ase['header']['frames'][i]['chunks_number']; j++
+        for var j = 0; j < ase['header']['frames'][i]['chunks_number']; j += 1
         {
             ase['header']['frames'][i]['chunks'].add(grab_chunk(file))
         }

@@ -133,7 +133,7 @@ export class Player
 
         if items.len > 0
         {
-            for var i = 0; i < items.len; i++
+            for var i = 0; i < items.len; i += 1
             {
                 const item = items[i]
                 if item is Map
@@ -259,7 +259,7 @@ export class Player
             // collisions
             if cols.len > 0 and (not self.isJump) and (not self.isClimb)
             {
-                for var i = 0; i < cols.len; i++
+                for var i = 0; i < cols.len; i += 1
                 {
                     if cols[i]['normal']['y'] == -1
                     {

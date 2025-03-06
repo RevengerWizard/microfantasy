@@ -59,7 +59,7 @@ function rect_getSegmentIntersectionIndices(x, y, w, h, x1, y1, x2, y2, ti1=0, t
     var nx1, ny1, nx2, ny2 = 0, 0, 0, 0
     var p, q, r
 
-    for var side = 1; side < 5; side++
+    for var side = 1; side < 5; side += 1
     {
         if side == 1 { nx, ny, p, q = -1,  0, -dx, x1 - x }     // left
         else if side == 2 { nx, ny, p, q = 1,  0,  dx, x + w - x1 } // right
@@ -394,12 +394,12 @@ function removeItemFromCell(world, item, cx, cy)
 function getItemsInCellRect(world, cl, ct, cw, ch)
 {
     var items_dict = {}
-    for var cy = ct; cy < ct + ch; cy++
+    for var cy = ct; cy < ct + ch; cy += 1
     {
         var row = world.rows.get(cy)
         if row
         {
-            for var cx = cl; cx < cl + cw; cx++
+            for var cx = cl; cx < cl + cw; cx += 1
             {
                 var cell = row.get(cx)
                 if cell and cell.count > 0 // no cell.count > 1 because tunneling
@@ -669,7 +669,7 @@ class World
         const itemInfo = getInfoAboutItemsTouchedBySegment(self, x1, y1, x2, y2, filter)
         const dx, dy = x2 - x1, y2 - y1
         var info, ti1, ti2
-        for var i = 0; i < itemInfo.len; i++
+        for var i = 0; i < itemInfo.len; i += 1
         {
             info = itemInfo[i]
             ti1 = info.ti1
@@ -697,9 +697,9 @@ class World
         self.rects[item] = {x = x, y = y, w = w, h = h}
 
         const cl, ct, cw, ch = grid_toCellRect(self.cellSize, x, y, w, h)
-        for var cy = ct; cy < ct + ch; cy++
+        for var cy = ct; cy < ct + ch; cy += 1
         {
-            for var cx = cl; cx < cl + cw; cx++
+            for var cx = cl; cx < cl + cw; cx += 1
             {
                 addItemToCell(self, item, cx, cy)
             }
@@ -714,9 +714,9 @@ class World
 
         self.rects.delete(item)
         var cl, ct, cw, ch = grid_toCellRect(self.cellSize, x, y, w, h)
-        for var cy = ct; cy < ct + ch; cy++
+        for var cy = ct; cy < ct + ch; cy += 1
         {
-            for var cx = cl; cx < cl + cw; cx++
+            for var cx = cl; cx < cl + cw; cx += 1
             {
                 removeItemFromCell(self, item, cx, cy)
             }
@@ -743,10 +743,10 @@ class World
                 const cb2 = ct2 + ch2 - 1
                 var cyOut
             
-                for var cy = ct1; cy <= cb1; cy++
+                for var cy = ct1; cy <= cb1; cy += 1
                 {
                     cyOut = (cy < ct2) or (cy > cb2)
-                    for var cx = cl1; cx <= cr1; cx++
+                    for var cx = cl1; cx <= cr1; cx += 1
                     {
                         if cyOut or (cx < cl2) or (cx > cr2)
                         {
@@ -755,10 +755,10 @@ class World
                     }
                 }
             
-                for var cy = ct2; cy <= cb2; cy++
+                for var cy = ct2; cy <= cb2; cy += 1
                 {
                     cyOut = (cy < ct1) or (cy > cb1)
-                    for var cx = cl2; cx <= cr2; cx++
+                    for var cx = cl2; cx <= cr2; cx += 1
                     {
                         if cyOut or (cx < cl1) or (cx > cr1)
                         {

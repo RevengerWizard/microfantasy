@@ -5,7 +5,7 @@ export function getTiles(imageW, tileW)
     while imageW >= tileW
     {
         imageW = imageW - tileW
-        if imageW >= 0 { n++ }
+        if imageW >= 0 { n += 1 }
     }
     return n
 }

@@ -30,7 +30,7 @@ export class Chest : Item
     function loot()
     {
         const x, y = self.x, self.y - 5
-        for var i = 0; i < self.itemCount; i++
+        for var i = 0; i < self.itemCount; i += 1
         {
             var item = self.lootTable.roll(x, y)
             if item != nil

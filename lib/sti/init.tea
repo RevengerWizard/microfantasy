@@ -20,7 +20,7 @@ class Tilemap
 
         // Set tiles, images
         var gid = 1
-        for var i = 0; i < self.tilesets.len; i++
+        for var i = 0; i < self.tilesets.len; i += 1
         {
             const tileset = self.tilesets[i]
             const path = tileset['image']
@@ -36,7 +36,7 @@ class Tilemap
         self.layers = layers
 
         // Set layers
-        for var i = 0; i < self.layers.len; i++
+        for var i = 0; i < self.layers.len; i += 1
         {
             const layer = self.layers[i]
             self.setLayer(i, layer)
@@ -52,9 +52,9 @@ class Tilemap
         const w = utils.getTiles(imageW, tileW)
         const h = utils.getTiles(imageH, tileH)
 
-        for var y = 0; y < h; y++
+        for var y = 0; y < h; y += 1
         {
-            for var x = 0; x < w; x++
+            for var x = 0; x < w; x += 1
             {
                 const id = gid - tileset['firstgid']
                 const quadX = x * tileW
@@ -93,7 +93,7 @@ class Tilemap
                 }
 
                 self.tiles[gid] = tile
-                gid++
+                gid += 1
             }
         }
         return gid
@@ -124,10 +124,10 @@ class Tilemap
         var i = 0
         const map = {}
 
-        for var y = 0; y < layer['height']; y++
+        for var y = 0; y < layer['height']; y += 1
         {
             map[y] = {}
-            for var x = 0; x < layer['width']; x++
+            for var x = 0; x < layer['width']; x += 1
             {
                 const gid = layer['data'][i]
                 
@@ -137,7 +137,7 @@ class Tilemap
                     map[y][x] = self.tiles.get(gid) or self.setFlippedGID(gid)
                 }
 
-                i++
+                i += 1
             }
         }
 
@@ -275,9 +275,9 @@ class Tilemap
         const endX = layer['width']
         const endY = layer['height']
 
-        for var y = startY; y < endY; y++
+        for var y = startY; y < endY; y += 1
         {
-            for var x = startX; x < endX; x++
+            for var x = startX; x < endX; x += 1
             {
                 // NOTE: Cannot short circuit self since it is valid for tile to be assigned nil
                 if layer['data'].get(y) and layer['data'][y].get(x)
