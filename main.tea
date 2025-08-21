@@ -84,7 +84,7 @@ function micro.draw()
 {
     const x = camera.x
     const y = camera.y
-    level.draw(math.ceil(x), math.ceil(y))
+    level.draw(math.floor(x), math.floor(y))
 
     micro.gfx.print("${mx}, ${my}", mx + 3, my - 5)
     micro.gfx.pixel(mx, my)

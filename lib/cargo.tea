@@ -34,10 +34,10 @@ class Asset
         }
 
         const path = './' + self.path + '/' + key
-        print(micro.filesystem.exists('./asset/ui/heart_empty.png'))
+        print(micro.fs.exists('./asset/ui/heart_empty.png'))
         print(path)
 
-        if micro.filesystem.isDir(path)
+        if micro.fs.isDir(path)
         {
             self.assets[key] = Asset.new(path, self.loaders, self.processors)
             return self.assets[key]
@@ -47,7 +47,7 @@ class Asset
         {
             const filepath = "${path}.${ext}"
             print(filepath)
-            if loader and micro.filesystem.exists(filepath)
+            if loader and micro.fs.exists(filepath)
             {
                 const asset = loader(filepath)
                 self.assets[key] = asset
