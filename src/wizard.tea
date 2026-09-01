@@ -60,8 +60,8 @@ export class Wizard : Enemy
         const laserStartY = self.y
 
         // Calculate end point based on facing direction
-        const laserEndX = self.facing == 1 ? 
-            laserStartX + self.laserRange : 
+        const laserEndX = self.facing == 1 ?
+            laserStartX + self.laserRange :
             laserStartX - self.laserRange
 
         // Check for collision with solid objects
@@ -88,7 +88,7 @@ export class Wizard : Enemy
         const endY = self.laserEndY - y
 
         const colors = self.laserColors[self.currentColorIndex]
-        
+
         const color1 = colors['rect']
         const color2 = colors['lines']
         micro.gfx.setColor(color1[0], color1[1], color1[2])

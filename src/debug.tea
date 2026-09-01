@@ -43,15 +43,15 @@ function prompt(text)
 {
     text = text.strip()
 
-    if text[0] != "/" 
+    if text[0] != "/"
     {
-        return error("Invalid command. Commands must start with '/'.")
+        return print("Invalid command. Commands must start with '/'.")
     }
 
     const parts = text.split(" ")
     const command = parts[0][1:]    // Remove leading '/'
 
-    if command == "spawn" 
+    if command == "spawn"
     {
         const x = tonumber(parts[1])
         const y = tonumber(parts[2])
@@ -59,7 +59,7 @@ function prompt(text)
         const variant = parts.len > 4 ? parts[4] : 'none'
         const name = helper.getName(type, variant)
 
-        if x == nil or y == nil 
+        if x == nil or y == nil
         {
             return error("x and y must be numbers")
         }
@@ -68,10 +68,10 @@ function prompt(text)
         level.spawnEntity(x + offx, y + offy, type, name)
 
         print("Spawned entity: ${name} (${type}) at (${x}, ${y})")
-    } 
-    else 
+    }
+    else
     {
-        error("Unknown command: ${command}")
+        print("Unknown command: ${command}")
     }
 }
 

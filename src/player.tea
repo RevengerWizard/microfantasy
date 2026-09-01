@@ -140,7 +140,7 @@ export class Player
                 {
                     if item['type'] == 'stair'
                     {
-                        if (self.hasWeapon and not self.weapon.isAttacking) 
+                        if (self.hasWeapon and not self.weapon.isAttacking)
                             or not self.hasWeapon
                         {
                             self.isClimb = true
@@ -184,7 +184,7 @@ export class Player
             {
                 self.dx = math.max(self.dx - self.decel * dt, 0)
             }
-        
+
             // this blocks our velocity to maxVel
             const v = math.sqrt(self.dx * self.dx + self.dy * self.dy)
             if v > self.maxVel
@@ -193,11 +193,11 @@ export class Player
                 self.dx = self.dx * vs
                 self.dy = self.dy * vs
             }
-        
+
             // these 2 lines handle damping (aka friction)
             self.dx = self.dx / (1 + self.damping * dt)
             self.dy = self.dy / (1 + self.damping * dt)
-        
+
             if micro.keyboard.wasPressed('up') and (not self.isJump) and self.isGround
             {
                 self.isJump = true
@@ -339,7 +339,7 @@ export class Player
             self.sprite.play()
             self.sprite.setTag(self.state)
         }
-        
+
         self.sprite.draw((self.x + self.px) - x, self.y - y,
                             0, self.sx, 1, self.ox, self.oy)
     }

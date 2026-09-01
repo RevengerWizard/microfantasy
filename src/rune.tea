@@ -209,7 +209,7 @@ function Rune:isConnected(weight)
                     // It's the first dot
                     dotx = j
                     doty = i
-                } 
+                }
                 else
                 {
                     // There is more than 1 dot
@@ -307,7 +307,7 @@ function Rune:countNeighbours(x, y, r=1)
 function Rune:mirrorX()
 {
     const rune = Rune.new()
-    
+
     rune.bitmap = []
     for var i = 0; i < HEIGHT; i += 1
     {
@@ -343,7 +343,7 @@ function Rune:mirrorY()
 function Rune:rotate180()
 {
     const rune = Rune.new()
-   
+
     rune.bitmap = []
     for var i = 0; i < HEIGHT; i += 1
     {

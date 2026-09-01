@@ -35,7 +35,7 @@ export class Weapon : Item
         self.loadEvents()
         return sprite
     }
-    
+
     function loadEvents() { }
 }
 
@@ -190,7 +190,7 @@ export class Bow : Weapon
         self.sprite.onTagEnd('attack_arrow', attack)
         self.sprite.onTagEnd('attack_no_arrow', attack)
     }
-    
+
     function attack()
     {
         self.isAttacking = true

@@ -45,7 +45,7 @@ export class Particle
             self.rect['y'] = math.floor(lifeProgress * (h - sizeH))
             self.rect['w'] = sizeW
             self.rect['h'] = sizeH
-            
+
             var alpha = 1
             if lifeProgress < self.fadeInTime / self.initialLifetime
             {
@@ -57,10 +57,10 @@ export class Particle
             }
             micro.gfx.setAlpha(math.floor(255 * alpha))
             micro.gfx.draw(
-                self.image, 
-                self.position['x'] - x, 
-                self.position['y'] - y, 
-                self.rect, 
+                self.image,
+                self.position['x'] - x,
+                self.position['y'] - y,
+                self.rect,
                 self.rotation,
                 1, 1,
                 sizeW / 2, sizeH / 2  // Center origin
@@ -92,7 +92,7 @@ export class ParticleEmitter
         self.gravity = config['gravity']
         self.spread = config['spread']
         self.elapsedTime = 0
-        
+
         self.maxParticles = config['maxParticles']
         self.sizeRange = config['sizeRange']
         self.rotationSpeed = config['rotationSpeed']
@@ -101,7 +101,7 @@ export class ParticleEmitter
         self.emissionRadius = config['emissionRadius']
         self.fadeInTime = config['fadeInTime']
         self.fadeOutTime = config['fadeOutTime']
-        
+
         self.isActive = false
     }
 
@@ -192,7 +192,7 @@ export class ParticleEmitter
         var lifetime = random.random() * (self.lifetimeRange['max'] - self.lifetimeRange['min']) + self.lifetimeRange['min']
         var size = random.random() * (self.sizeRange['max'] - self.sizeRange['min']) + self.sizeRange['min']
         var rotationSpeed = random.random() * (self.rotationSpeed['max'] - self.rotationSpeed['min']) + self.rotationSpeed['min']
-        
+
         var newParticle = Particle.new(posX, posY, velX, velY, lifetime, self.particleImage, self.textureDimensions, 1, rotationSpeed, self.fadeInTime, self.fadeOutTime)
         self.particles.add(newParticle)
     }

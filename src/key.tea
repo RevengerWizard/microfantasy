@@ -4,7 +4,7 @@ from "item" import Item
 
 export class Key : Item
 {
-    new(x, y, name) 
+    new(x, y, name)
     {
         super(x, y, name)
         self.type = 'key'
@@ -16,7 +16,7 @@ export class Key : Item
     {
         self.target = target
     }
-    
+
     function update(dt)
     {
         if self.target
@@ -43,7 +43,7 @@ export class Key : Item
                     // Slow down as it approaches the stopDistance
                     const speed = math.min(self.speed * dt, distance - stopDistance)  // Gradually slow down
                     self.x = self.x + (dx / len) * speed
-                    self.y = self.y + (dy / len) * speed 
+                    self.y = self.y + (dy / len) * speed
                 }
             }
             else

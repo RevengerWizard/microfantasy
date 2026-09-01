@@ -73,18 +73,18 @@ export class Arrow
         const targetX = self.x + (self.speed * self.direction * dt)
 
         const x, y, cols = world.move(self, targetX, self.y, filter)
-        
+
         if cols.len > 0
         {
             // Get the first collision
             const col = cols[0]
             const other = col['other']
-            
+
             // Stop at collision point and stick to the object
             self.x = col['touch']['x']
             self.y = col['touch']['y']
             self.stuck = true
-            
+
             // If we hit an entity (not a tile), store reference and offset
             if other is not Map
             {
@@ -93,7 +93,7 @@ export class Arrow
                     x = self.x - other.x,
                     y = self.y - other.y
                 }
-                
+
                 // Here you could add damage or other effects
                 if other is Enemy
                 {
@@ -113,14 +113,14 @@ export class Arrow
     {
         // Draw with correct rotation based on direction
         micro.gfx.draw(
-            self.image, 
-            self.x - x, 
-            self.y - y, 
+            self.image,
+            self.x - x,
+            self.y - y,
             nil,
             0,
-            self.direction, 
-            1, 
-            self.ox, 
+            self.direction,
+            1,
+            self.ox,
             self.oy
         )
     }

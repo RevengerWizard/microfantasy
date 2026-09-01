@@ -63,7 +63,7 @@ function read_string(file)
 function grab_header(file)
 {
     const header = {}
-    
+
     header['file_size'] = read_num(file, DWORD)
     header['magic_number'] = read_num(file, WORD)
 
@@ -135,7 +135,7 @@ function grab_frame_header(file)
     }
 
     header['chunks'] = []
-    
+
     return header
 }
 
@@ -429,7 +429,7 @@ function grab_chunk(file)
     const chunk = {}
     chunk['size'] = read_num(file, DWORD)
     chunk['type'] = read_num(file, WORD)
-    
+
     switch chunk['type']
     {
         case 0x2007

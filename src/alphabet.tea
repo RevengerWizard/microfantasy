@@ -37,7 +37,7 @@ function addRune(rune)
 
     const mirrX = rune.mirrorX()
     const mirrY = rune.mirrorY()
-    
+
     for const r in alphabet
     {
         if rune.diff(r) < 5
@@ -49,17 +49,17 @@ function addRune(rune)
         {
             return false
         }
-        
+
         if not rune.vSym and r.diff(mirrY) < 3
         {
             return false
         }
-        
+
         if not rune.vSym and not rune.hSym and r.diff(rune.rotate180()) < 1
         {
             return false
         }
-    }  
+    }
     return true
 }
 

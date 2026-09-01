@@ -59,7 +59,7 @@ export class Enemy
         self.sightRange = { left = 6, right = 6 }
         level.addEntity(self)
         level.addWorld(self)
-        
+
         self.load()
         self.loadEvents()
     }
@@ -74,8 +74,8 @@ export class Enemy
     function loadEvents()
     {
         self.sprite.onTagEnd(self.attackName, function() {
-            self.move = true 
-            self.isAttacking = false 
+            self.move = true
+            self.isAttacking = false
         })
     }
 
@@ -125,7 +125,7 @@ export class Enemy
         const direction = random.random() > 0.5 ? 1 : -1  // Randomly choose left or right
         const initialSpeed = random.random() * 0.8    // Random speed between 50-80
         const upwardSpeed = random.random() * 0.2     // Random upward boost between 40-60
-        
+
         const coin = Coin.new(self.x, self.y - 5, 'coin_gold')
         coin.dx = initialSpeed * direction
         coin.dy = -upwardSpeed  // Negative for upward movement
@@ -167,22 +167,22 @@ export class Enemy
 
         // Check sight lines based on facing direction
         const leftSight = world.querySegment(
-            self.x, 
-            self.y + 2, 
-            self.x - self.sightRange['left'], 
-            self.y + 2, 
+            self.x,
+            self.y + 2,
+            self.x - self.sightRange['left'],
+            self.y + 2,
             filterTarget
         )
 
         const rightSight = world.querySegment(
-            self.x + 4, 
-            self.y + 2, 
+            self.x + 4,
+            self.y + 2,
             self.x + self.sightRange['right'],
-            self.y + 2, 
+            self.y + 2,
             filterTarget
         )
 
-        const playerInSight = (self.facing == -1 and leftSight.len > 0) or 
+        const playerInSight = (self.facing == -1 and leftSight.len > 0) or
                             (self.facing == 1 and rightSight.len > 0)
 
         if playerInSight
@@ -219,7 +219,7 @@ export class Enemy
                 if rightEdge.len == 0 { self.flip = true }
 
                 self.behaviors[self.currentBehavior](dt)
-                
+
                 self.dx = self.dx / (1 + self.damping * dt)
                 self.dy = self.dy / (1 + self.damping * dt)
             }
@@ -236,7 +236,7 @@ export class Enemy
             const res = world.move(self, self.x + self.dx, self.y + self.dy, filter)
             self.x = res[0]
             self.y = res[1]
-            const cols = res[2] 
+            const cols = res[2]
 
             // collisions
             if cols.len > 0
@@ -264,7 +264,7 @@ export class Enemy
             if self.dx != 0
             {
                 self.state = 'run'
-            }		
+            }
             else
             {
                 self.state = 'idle'
@@ -363,7 +363,7 @@ export class Dwarf : Enemy
         {
             self.setBehavior('idle')
         }
-        
+
         super.update(dt)
     }
 }

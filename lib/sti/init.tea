@@ -130,7 +130,7 @@ class Tilemap
             for var x = 0; x < layer['width']; x += 1
             {
                 const gid = layer['data'][i]
-                
+
                 // NOTE: Empty tiles have a GID of 0
                 if gid > 0
                 {
@@ -284,7 +284,7 @@ class Tilemap
                 {
                     const tile = layer['data'][y][x]
                     self.addNewLayerTile(layer, tile, x, y)
-                }    
+                }
             }
         }
     }

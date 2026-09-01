@@ -8,7 +8,7 @@ from "effect" import Effect
 
 export class Coin : Item
 {
-    new(x, y, name) 
+    new(x, y, name)
     {
         super(x, y, name)
         self.type = 'coin'
@@ -44,10 +44,10 @@ export class Coin : Item
             fadeInTime = 0.1,
             fadeOutTime = 0.2
         }
-        
+
         self.sound = micro.Source.fromData(micro.Data.fromFile("sound/coinpickup.ogg"))
     }
-    
+
     function load()
     {
         const sprite = Sprite.new("asset/item/${self.name}.aseprite", 'idle')
