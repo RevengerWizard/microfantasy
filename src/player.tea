@@ -1,8 +1,10 @@
 import math
 
-import "level" as level
+import "src/level" as level
+import "src/ui" as ui
 
-from "sprite" import Sprite
+from "src/sprite" import Sprite
+from "src/effect" import Effect
 
 export class Player
 {
@@ -35,6 +37,23 @@ export class Player
         self.hitTimer = 0
         self.hitDuration = 0.2
         self.jumpSound = micro.Source.fromData(micro.Data.fromFile("sound/jump.ogg"))
+        self.bloodEffect = {
+            imagePath = "asset/particle_blood.png",
+            spawnRate = 0.01,
+            position = {x = 0, y = 0},
+            velocityRange = {minX = -18, maxX = 18, minY = -24, maxY = -6},
+            lifetimeRange = {min = 0.2, max = 0.45},
+            gravity = {x = 0, y = 18},
+            spread = {x = 2, y = 2},
+            maxParticles = 6,
+            sizeRange = {min = 0.4, max = 0.8},
+            rotationSpeed = {min = -3.14, max = 3.14},
+            turbulence = {x = 3, y = 3},
+            emissionShape = "circle",
+            emissionRadius = 2,
+            fadeInTime = 0.02,
+            fadeOutTime = 0.2
+        }
         self.load()
         level.addPlayer(self)
         level.addWorld(self)
@@ -51,15 +70,26 @@ export class Player
         self.sprite = self.defaultSprite
     }
 
-    function hit()
+    function hit(direction=1)
     {
         if not self.isHit
         {
             self.isHit = true
             self.hitTimer = self.hitDuration
 
-            self.dx = 75
-            self.dy = -75
+            if direction < 0
+            {
+                direction = -1
+            }
+            else
+            {
+                direction = 1
+            }
+
+            self.dx = 0.9 * direction
+            self.dy = -0.58
+            Effect.new(self.x + 2, self.y + 2, self.bloodEffect, 0.45, 5)
+            ui.damage(0.5)
         }
     }
 
@@ -83,33 +113,32 @@ export class Player
     function interact(item)
     {
         switch item.type
+        case 'chest'
         {
-            case 'chest'
+            item.open()
+        }
+        case 'coin', 'potion'
+        {
+            ui.collect()
+            item.pick()
+        }
+        case 'key'
+        {
+            item.setTarget(self)
+        }
+        case 'weapon'
+        {
+            if micro.keyboard.wasPressed('e')
             {
-                item.open()
-            }
-            case 'coin', 'potion'
-            {
-                item.pick()
-            }
-            case 'key'
-            {
-                item.setTarget(self)
-            }
-            case 'weapon'
-            {
-                if micro.keyboard.wasPressed('e')
+                if self.hasWeapon
                 {
-                    if self.hasWeapon
-                    {
-                        self.weapon.drop(self.x, self.y - 4)
-                    }
-                    self.weapon = item
-                    self.hasWeapon = true
-                    level.removeEntity(item)
-                    self.weaponSprite = self.weapon.loadSprite(self)
-                    self.updateSprite()
+                    self.weapon.drop(self.x, self.y - 4)
                 }
+                self.weapon = item
+                self.hasWeapon = true
+                level.removeEntity(item)
+                self.weaponSprite = self.weapon.loadSprite(self)
+                self.updateSprite()
             }
         }
     }

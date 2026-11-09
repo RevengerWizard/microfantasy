@@ -1,5 +1,3 @@
-import io
-
 function unpack(fmt, data, pos=0)
 {
     var res
@@ -50,14 +48,39 @@ const DWORD = ['I4', 4]
 const LONG = ['i4', 4]
 const FIXED = ['i4', 4]
 
+// The whole file is loaded in memory; a reader is a buffer plus a cursor.
+function new_reader(data)
+{
+    const reader = {}
+    reader['data'] = data
+    reader['pos'] = 0
+    return reader
+}
+
+// Returns `size` bytes starting at `start` as a string.
+// This is the only place that needs a substring primitive.
+function slice(data, start, size)
+{
+    return data[start:start + size]
+}
+
+function read_bytes(file, size)
+{
+    const res = slice(file['data'], file['pos'], size)
+    file['pos'] += size
+    return res
+}
+
 function read_num(file, fmt, amount=1)
 {
-    return unpack(fmt[0], file.read(fmt[1] * amount))
+    const res = unpack(fmt[0], file['data'], file['pos'])
+    file['pos'] += fmt[1] * amount
+    return res
 }
 
 function read_string(file)
 {
-    return file.read(read_num(file, WORD))
+    return read_bytes(file, read_num(file, WORD))
 }
 
 function grab_header(file)
@@ -260,51 +283,49 @@ function grab_cel(file, size)
     read_num(file, BYTE, 7)
 
     switch cel['type']
+    case 0  // Raw image data
     {
-        case 0  // Raw image data
-        {
-            cel['width'] = read_num(file, WORD)
-            cel['height'] = read_num(file, WORD)
-            cel['data'] = []
+        cel['width'] = read_num(file, WORD)
+        cel['height'] = read_num(file, WORD)
+        cel['data'] = []
 
-            for var i = 0; i < cel['width'] * cel['height']; i += 1
-            {
-                cel['data'].add([
-                    read_num(file, BYTE),
-                    read_num(file, BYTE),
-                    read_num(file, BYTE),
-                    read_num(file, BYTE)
-                ])
-            }
-        }
-        case 1  // Linked cel
+        for var i = 0; i < cel['width'] * cel['height']; i += 1
         {
-            cel['frame_pos_link'] = read_num(file, WORD)
+            cel['data'].add([
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+                read_num(file, BYTE),
+                read_num(file, BYTE)
+            ])
         }
-        case 2  // Compressed image
-        {
-            cel['width'] = read_num(file, WORD)
-            cel['height'] = read_num(file, WORD)
-            cel['data'] = file.read(size - 26)
-        }
-        case 3  // Compressed tilemap
-        {
-            cel['width'] = read_num(file, WORD)
-            cel['height'] = read_num(file, WORD)
-            cel['bits_per_tile'] = read_num(file, WORD)
-            cel['bitmask_tile_id'] = read_num(file, DWORD)  // Always 32 bits
-            cel['bitmask_x_flip'] = read_num(file, DWORD)
-            cel['bitmask_y_flip'] = read_num(file, DWORD)
-            cel['bitmask_rotation'] = read_num(file, DWORD)
+    }
+    case 1  // Linked cel
+    {
+        cel['frame_pos_link'] = read_num(file, WORD)
+    }
+    case 2  // Compressed image
+    {
+        cel['width'] = read_num(file, WORD)
+        cel['height'] = read_num(file, WORD)
+        cel['data'] = read_bytes(file, size - 26)
+    }
+    case 3  // Compressed tilemap
+    {
+        cel['width'] = read_num(file, WORD)
+        cel['height'] = read_num(file, WORD)
+        cel['bits_per_tile'] = read_num(file, WORD)
+        cel['bitmask_tile_id'] = read_num(file, DWORD)  // Always 32 bits
+        cel['bitmask_x_flip'] = read_num(file, DWORD)
+        cel['bitmask_y_flip'] = read_num(file, DWORD)
+        cel['bitmask_rotation'] = read_num(file, DWORD)
 
-            // Skip
-            read_num(file, BYTE, 10)
+        // Skip
+        read_num(file, BYTE, 10)
 
-            cel['data'] = []
-            for var i = 0; i < cel['width'] * cel['height']; i += 1
-            {
-                cel['data'].add([read_num(file, DWORD)])
-            }
+        cel['data'] = []
+        for var i = 0; i < cel['width'] * cel['height']; i += 1
+        {
+            cel['data'].add([read_num(file, DWORD)])
         }
     }
 
@@ -431,47 +452,45 @@ function grab_chunk(file)
     chunk['type'] = read_num(file, WORD)
 
     switch chunk['type']
+    case 0x2007
     {
-        case 0x2007
-        {
-            chunk['data'] = grab_color_profile(file)
-        }
-        case 0x2019
-        {
-            chunk['data'] = grab_palette(file)
-        }
-        case 0x0004
-        {
-            chunk['data'] = grab_old_palette(file)
-        }
-        case 0x2004
-        {
-            chunk['data'] = grab_layer(file)
-        }
-        case 0x2005
-        {
-            chunk['data'] = grab_cel(file, chunk['size'])
-        }
-        case 0x2018
-        {
-            chunk['data'] = grab_tags(file)
-        }
-        case 0x2022
-        {
-            chunk['data'] = grab_slice(file)
-        }
-        case 0x2020
-        {
-            chunk['data'] = grab_user_data(file)
-        }
-        case 0x2023
-        {
-            chunk['data'] = grab_tileset(file)
-        }
-        default
-        {
-            print("Invalid chunk type " + tostring(chunk['type']))
-        }
+        chunk['data'] = grab_color_profile(file)
+    }
+    case 0x2019
+    {
+        chunk['data'] = grab_palette(file)
+    }
+    case 0x0004
+    {
+        chunk['data'] = grab_old_palette(file)
+    }
+    case 0x2004
+    {
+        chunk['data'] = grab_layer(file)
+    }
+    case 0x2005
+    {
+        chunk['data'] = grab_cel(file, chunk['size'])
+    }
+    case 0x2018
+    {
+        chunk['data'] = grab_tags(file)
+    }
+    case 0x2022
+    {
+        chunk['data'] = grab_slice(file)
+    }
+    case 0x2020
+    {
+        chunk['data'] = grab_user_data(file)
+    }
+    case 0x2023
+    {
+        chunk['data'] = grab_tileset(file)
+    }
+    default
+    {
+        print("Invalid chunk type " + tostring(chunk['type']))
     }
 
     return chunk
@@ -479,7 +498,7 @@ function grab_chunk(file)
 
 export function load(src)
 {
-    const file = io.open(src, 'rb')
+    const file = new_reader(micro.fs.read(src))
 
     const ase = {}
 
@@ -498,6 +517,5 @@ export function load(src)
         }
     }
 
-    file.close()
     return ase
 }

@@ -1,6 +1,6 @@
 import math
 
-import "utils" as utils
+import "lib/sti/utils" as utils
 
 class Tilemap
 {
@@ -24,7 +24,10 @@ class Tilemap
         {
             const tileset = self.tilesets[i]
             const path = tileset['image']
-            tileset['image'] = micro.Image.fromFile(path)
+            if typeof(path) == "string"
+            {
+                tileset['image'] = micro.Image.fromFile(path)
+            }
             gid = self.setTiles(i, tileset, gid)
         }
 
@@ -377,7 +380,7 @@ export function load(map)
     return Tilemap.new(map)
 }
 
-import "plugins/bump" as plugin
+import "lib/sti/plugins/bump" as plugin
 export {
     plugin
 }

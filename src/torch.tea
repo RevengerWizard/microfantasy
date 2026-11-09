@@ -1,0 +1,69 @@
+import math
+
+import "src/level" as level
+
+from "src/particle" import ParticleEmitter
+
+export class Torch
+{
+    new(x, y, name="torch")
+    {
+        self.x = x
+        self.y = y
+        self.w = 8
+        self.h = 8
+        self.type = "torch"
+        self.name = name
+        self.active = false
+        self.emitter = ParticleEmitter.new({
+            imagePath = "asset/particle_fire.png",
+            position = {x = x, y = y - 4},
+            spawnRate = 0.001,
+            velocityRange = {
+                minX = -0.4,
+                maxX = 0.4,
+                minY = -24.5,
+                maxY = -18.4
+            },
+            lifetimeRange = {min = 0.4, max = 1.5},
+            gravity = {x = 8, y = -8},
+            spread = {x = 0, y = 0},
+            maxParticles = 30,
+            sizeRange = {min = 0.35, max = 0.65},
+            rotationSpeed = {min = -math.pi, max = math.pi},
+            turbulence = {x = 3.2, y = 1.5},
+            emissionShape = "point",
+            emissionRadius = 90,
+            fadeInTime = 0.1,
+            fadeOutTime = 0.1
+        })
+        self.emitter.start()
+        level.addEntity(self)
+        level.addWorld(self)
+    }
+
+    function update(dt)
+    {
+        self.emitter.setPosition(self.x, self.y - 4)
+        self.emitter.update(dt)
+
+        const player = level.getPlayer()
+        const world = level.getWorld()
+        const items = world.queryRect(self.x, self.y, self.w, self.h)
+        for const item in items
+        {
+            if item == player
+            {
+                self.active = true
+                self.emitter.sizeRange = {min = 1, max = 1.5}
+                level.setCheckpoint(self.x, self.y)
+                break
+            }
+        }
+    }
+
+    function draw(x=0, y=0)
+    {
+        self.emitter.draw(x, y)
+    }
+}

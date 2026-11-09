@@ -1,0 +1,69 @@
+var scenes = {}
+var current
+var currentName = ""
+
+export function register(name, scene)
+{
+    scenes[name] = scene
+}
+
+export function change(name)
+{
+    const next = scenes.get(name)
+    if not next
+    {
+        error("Unknown scene: " + name)
+    }
+
+    current = next
+    currentName = name
+    if current.get("enter")
+    {
+        current['enter']()
+    }
+}
+
+export function getName()
+{
+    return currentName
+}
+
+export function update(dt)
+{
+    if current and current.get("update")
+    {
+        current['update'](dt)
+    }
+}
+
+export function draw()
+{
+    if current and current.get("draw")
+    {
+        current['draw']()
+    }
+}
+
+export function keydown(key)
+{
+    if current and current.get("keydown")
+    {
+        current['keydown'](key)
+    }
+}
+
+export function mousedown(button)
+{
+    if current and current.get("mousedown")
+    {
+        current['mousedown'](button)
+    }
+}
+
+export function mouseup(button)
+{
+    if current and current.get("mouseup")
+    {
+        current['mouseup'](button)
+    }
+}

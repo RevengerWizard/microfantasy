@@ -1,0 +1,950 @@
+import math
+
+const tileSize = 8
+const viewportColumns = 25
+const mapWidth = 50
+const mapHeight = 32
+const canvasY = 16
+const canvasHeight = 128
+const paletteY = canvasY + canvasHeight
+const paletteColumns = 12
+const paletteRows = 6
+const tilesetRows = 8
+const savePath = "tilemap/editor.tea"
+
+var image
+var layers
+var layerIndex = 0
+var selectedTile = 1
+var paletteSelectionX = 0
+var paletteSelectionY = 0
+var paletteScrollY = 0
+var cursorX = 0
+var cursorY = 0
+var scrollX = 0
+var scrollY = 0
+var collisionData
+var collisionMode = false
+var collisionType = "solid"
+var collisionWidth = 1
+var collisionHeight = 1
+var entityData
+var entityMode = false
+var entityIndex = 0
+var status = "editor"
+var dirty = false
+var initialized = false
+var enter
+
+const entityCatalog = [
+    {type = "dwarf", name = "dwarf"},
+    {type = "oldman", name = "oldman"},
+    {type = "barbarian", name = "barbarian"},
+    {type = "wizard", name = "wizard_red_staff"},
+    {type = "potion", name = "potion_red"},
+    {type = "coin", name = "coin_gold"},
+    {type = "chest", name = "chest2"},
+    {type = "key", name = "key_gold"},
+    {type = "bow", name = "bow"},
+    {type = "sword", name = "sword"},
+    {type = "axe", name = "axe"},
+    {type = "torch", name = "torch"}
+]
+
+function makeGrid()
+{
+    const data = []
+    for var y = 0; y < mapHeight; y += 1
+    {
+        const row = []
+        for var x = 0; x < mapWidth; x += 1
+        {
+            row.add(0)
+        }
+        data.add(row)
+    }
+    return data
+}
+
+function makeLayer(name)
+{
+    return {
+        type = "tilelayer",
+        visible = true,
+        opacity = 1,
+        offsetx = 0,
+        offsety = 0,
+        parallaxx = 1,
+        parallaxy = 1,
+        id = layers and layers.len + 1 or 1,
+        name = name,
+        width = mapWidth,
+        height = mapHeight,
+        data = makeGrid()
+    }
+}
+
+function tileAt(x, y)
+{
+    if x < 0 or x >= mapWidth or y < 0 or y >= mapHeight
+    {
+        return nil
+    }
+    return layers[layerIndex]['data'][y][x]
+}
+
+function setTile(x, y, gid)
+{
+    if x < 0 or x >= mapWidth or y < 0 or y >= mapHeight
+    {
+        return
+    }
+    layers[layerIndex]['data'][y][x] = gid
+    dirty = true
+}
+
+function setCollision(x, y, value)
+{
+    if x < 0 or x >= mapWidth or y < 0 or y >= mapHeight
+    {
+        return
+    }
+    collisionData[y][x] = value
+    dirty = true
+}
+
+function makeCollisionGrid()
+{
+    const data = []
+    for var y = 0; y < mapHeight; y += 1
+    {
+        const row = []
+        for var x = 0; x < mapWidth; x += 1
+        {
+            row.add(nil)
+        }
+        data.add(row)
+    }
+    return data
+}
+
+function makeEntityGrid()
+{
+    const data = []
+    for var y = 0; y < mapHeight; y += 1
+    {
+        const row = []
+        for var x = 0; x < mapWidth; x += 1
+        {
+            row.add(nil)
+        }
+        data.add(row)
+    }
+    return data
+}
+
+function eraseEntityAt(x, y)
+{
+    if x >= 0 and x < mapWidth and y >= 0 and y < mapHeight and entityData[y][x]
+    {
+        entityData[y][x] = nil
+        dirty = true
+    }
+}
+
+function placeEntity(x, y)
+{
+    if x < 0 or x >= mapWidth or y < 0 or y >= mapHeight
+    {
+        return
+    }
+    const entity = entityCatalog[entityIndex]
+    entityData[y][x] = {
+        type = entity['type'],
+        name = entity['name'],
+        x = x * tileSize + 2,
+        y = y * tileSize + 2,
+        width = 4,
+        height = 4
+    }
+    dirty = true
+}
+
+function eraseCollisionAt(x, y)
+{
+    const px = x * tileSize
+    const py = y * tileSize
+    for var row = 0; row < mapHeight; row += 1
+    {
+        for var column = 0; column < mapWidth; column += 1
+        {
+            const object = collisionData[row][column]
+            if object and px >= object['x'] and px < object['x'] + object['width'] and
+                py >= object['y'] and py < object['y'] + object['height']
+            {
+                collisionData[row][column] = nil
+                dirty = true
+                return
+            }
+        }
+    }
+}
+
+function placeCollision(x, y)
+{
+    setCollision(x, y, {
+        type = collisionType,
+        x = x * tileSize,
+        y = y * tileSize,
+        width = collisionWidth * tileSize,
+        height = collisionHeight * tileSize
+    })
+}
+
+function sourceRect(gid)
+{
+    const id = gid - 1
+    return {
+        x = (id % paletteColumns) * tileSize,
+        y = math.floor(id / paletteColumns) * tileSize,
+        w = tileSize,
+        h = tileSize
+    }
+}
+
+function tileTransform(gid)
+{
+    const bit31 = 2147483648
+    const bit30 = 1073741824
+    const bit29 = 536870912
+    var flipX = false
+    var flipY = false
+    var flipD = false
+    var realGid = gid
+
+    if realGid >= bit31
+    {
+        realGid = realGid - bit31
+        flipX = not flipX
+    }
+    if realGid >= bit30
+    {
+        realGid = realGid - bit30
+        flipY = not flipY
+    }
+    if realGid >= bit29
+    {
+        realGid = realGid - bit29
+        flipD = not flipD
+    }
+
+    var sx = 1
+    var sy = 1
+    var rotation = 0
+    if flipX
+    {
+        if flipY and flipD
+        {
+            rotation = math.rad(-90)
+            sy = -1
+        }
+        else if flipY
+        {
+            sx = -1
+            sy = -1
+        }
+        else if flipD
+        {
+            rotation = math.rad(90)
+        }
+        else
+        {
+            sx = -1
+        }
+    }
+    else if flipY
+    {
+        if flipD
+        {
+            rotation = math.rad(-90)
+        }
+        else
+        {
+            sy = -1
+        }
+    }
+    else if flipD
+    {
+        rotation = math.rad(90)
+        sy = -1
+    }
+
+    return {
+        gid = realGid,
+        rotation = rotation,
+        sx = sx,
+        sy = sy
+    }
+}
+
+function updatePaletteSelection()
+{
+    const selected = selectedTile - 1
+    const selectedRow = math.floor(selected / paletteColumns)
+    paletteSelectionX = selected % paletteColumns
+    paletteSelectionY = selectedRow - paletteScrollY
+}
+
+function paintAtMouse()
+{
+    const mx = micro.mouse.getX()
+    const my = micro.mouse.getY()
+
+    if my >= canvasY and my < paletteY
+    {
+        const x = math.floor(mx / tileSize) + scrollX
+        const y = math.floor((my - canvasY) / tileSize) + scrollY
+        cursorX = x
+        cursorY = y
+
+        if micro.mouse.isDown("left") and entityMode
+        {
+            placeEntity(x, y)
+        }
+        else if micro.mouse.isDown("right") and entityMode
+        {
+            eraseEntityAt(x, y)
+        }
+        else if micro.mouse.isDown("left") and collisionMode
+        {
+            placeCollision(x, y)
+        }
+        else if micro.mouse.isDown("right") and collisionMode
+        {
+            eraseCollisionAt(x, y)
+        }
+        else if micro.mouse.isDown("left")
+        {
+            setTile(x, y, selectedTile)
+        }
+        else if micro.mouse.isDown("right")
+        {
+            setTile(x, y, 0)
+        }
+    }
+}
+
+function selectPaletteAtMouse()
+{
+    const mx = micro.mouse.getX()
+    const my = micro.mouse.getY()
+
+    if my >= paletteY
+    {
+        const x = math.floor(mx / tileSize)
+        const y = math.floor((my - paletteY) / tileSize)
+        if x < paletteColumns and y < paletteRows
+        {
+            const gid = (paletteScrollY + y) * paletteColumns + x + 1
+            if gid <= 96
+            {
+                selectedTile = gid
+                updatePaletteSelection()
+            }
+        }
+    }
+}
+
+function serialize(value, indent=0)
+{
+    var pad = ""
+    var nextPad = ""
+    for var i = 0; i < indent; i += 1
+    {
+        pad += "    "
+        nextPad += "    "
+    }
+    nextPad += "    "
+
+    if value is Map
+    {
+        const parts = []
+        for const key, item in value
+        {
+            parts.add(nextPad + key + " = " + serialize(item, indent + 1))
+        }
+        return "{\n" + parts.join(",\n") + "\n" + pad + "}"
+    }
+    else if value is List
+    {
+        const parts = []
+        for const item in value
+        {
+            parts.add(serialize(item, indent + 1))
+        }
+        return "[" + parts.join(", ") + "]"
+    }
+    else if typeof(value) == "string"
+    {
+        return '"' + value + '"'
+    }
+    else if typeof(value) == "bool"
+    {
+        return value and "true" or "false"
+    }
+    else
+    {
+        return tostring(value)
+    }
+}
+
+function buildData()
+{
+    const exportLayers = []
+    for const layer in layers
+    {
+        const data = []
+        for var y = 0; y < mapHeight; y += 1
+        {
+            for var x = 0; x < mapWidth; x += 1
+            {
+                data.add(layer['data'][y][x])
+            }
+        }
+
+        exportLayers.add({
+            type = layer['type'],
+            visible = layer['visible'],
+            opacity = layer['opacity'],
+            offsetx = layer['offsetx'],
+            offsety = layer['offsety'],
+            parallaxx = layer['parallaxx'],
+            parallaxy = layer['parallaxy'],
+            id = layer['id'],
+            name = layer['name'],
+            width = layer['width'],
+            height = layer['height'],
+            data = data
+        })
+    }
+
+    const collisionObjects = []
+    var objectId = 1
+    for var y = 0; y < mapHeight; y += 1
+    {
+        for var x = 0; x < mapWidth; x += 1
+        {
+            const object = collisionData[y][x]
+            if object
+            {
+                collisionObjects.add({
+                    id = objectId,
+                    name = "",
+                    type = object['type'],
+                    x = object['x'],
+                    y = object['y'],
+                    width = object['width'],
+                    height = object['height'],
+                    shape = "rectangle",
+                    rotation = 0,
+                    visible = true,
+                    properties = {
+                        collidable = true
+                    }
+                })
+                objectId += 1
+            }
+        }
+    }
+
+    const collisionLayer = {
+        draworder = "topdown",
+        type = "objectgroup",
+        visible = true,
+        opacity = 1,
+        offsetx = 0,
+        offsety = 0,
+        parallaxx = 1,
+        parallaxy = 1,
+        id = layers.len + 1,
+        name = "collisions",
+        properties = {
+            collidable = true
+        },
+        objects = collisionObjects
+    }
+
+    const entityObjects = []
+    for var y = 0; y < mapHeight; y += 1
+    {
+        for var x = 0; x < mapWidth; x += 1
+        {
+            const object = entityData[y][x]
+            if object
+            {
+                entityObjects.add({
+                    id = objectId,
+                    name = object['name'],
+                    type = object['type'],
+                    x = object['x'],
+                    y = object['y'],
+                    width = object['width'],
+                    height = object['height'],
+                    shape = "rectangle",
+                    rotation = 0,
+                    visible = true
+                })
+                objectId += 1
+            }
+        }
+    }
+
+    const entityLayer = {
+        draworder = "topdown",
+        type = "objectgroup",
+        visible = true,
+        opacity = 1,
+        offsetx = 0,
+        offsety = 0,
+        parallaxx = 1,
+        parallaxy = 1,
+        id = layers.len + 2,
+        name = "entities",
+        objects = entityObjects
+    }
+
+    const data = {
+        version = "1.10",
+        tiledversion = "editor",
+        orientation = "orthogonal",
+        renderorder = "right-down",
+        width = mapWidth,
+        height = mapHeight,
+        tilewidth = tileSize,
+        tileheight = tileSize,
+        infinite = 0,
+        backgroundcolor = [41, 30, 49],
+        nextlayerid = layers.len + 3,
+        nextobjectid = objectId,
+        tilesets = [{
+            firstgid = 1,
+            name = "platformer",
+            tilewidth = tileSize,
+            tileheight = tileSize,
+            tilecount = 96,
+            columns = paletteColumns,
+            image = "asset/tileset/platformer.png",
+            imagewidth = 96,
+            imageheight = 64,
+            tiles = []
+        }],
+        layers = exportLayers
+    }
+    data['layers'].add(collisionLayer)
+    data['layers'].add(entityLayer)
+    return data
+}
+
+function exportData()
+{
+    return "export const data = " + serialize(buildData()) + ";\n"
+}
+
+export function getData()
+{
+    return buildData()
+}
+
+function save()
+{
+    micro.fs.setWritePath('.')
+    micro.fs.write(savePath, exportData())
+    dirty = false
+    status = "saved " + savePath
+}
+
+export function loadData(map)
+{
+    if not initialized
+    {
+        enter()
+    }
+
+    layers = []
+    collisionData = makeCollisionGrid()
+    entityData = makeEntityGrid()
+    for const sourceLayer in map['layers']
+    {
+        if sourceLayer['type'] == "tilelayer"
+        {
+            const layer = makeLayer(sourceLayer['name'])
+            layer['id'] = sourceLayer['id']
+            const sourceData = sourceLayer.get("data", [])
+            const sourceWidth = sourceLayer.get("width", map['width'])
+            const sourceHeight = sourceLayer.get("height", map['height'])
+            for var y = 0; y < mapHeight and y < sourceHeight; y += 1
+            {
+                for var x = 0; x < mapWidth and x < sourceWidth; x += 1
+                {
+                    var value = 0
+                    if sourceData is List
+                    {
+                        const index = y * sourceWidth + x
+                        value = sourceData[index]
+                    }
+                    else if sourceData is Map
+                    {
+                        const sourceRow = sourceData.get(y)
+                        if sourceRow
+                        {
+                            const sourceTile = sourceRow.get(x)
+                            if sourceTile is Map
+                            {
+                                value = sourceTile.get("gid", 0)
+                            }
+                            else
+                            {
+                                value = sourceTile or 0
+                            }
+                        }
+                    }
+                    layer['data'][y][x] = value
+                }
+            }
+            layers.add(layer)
+        }
+        else if sourceLayer['type'] == "objectgroup" and
+            sourceLayer['name'] in ["collisions", "stairs", "platforms"]
+        {
+            for const object in sourceLayer['objects']
+            {
+                const x = math.floor(object['x'] / tileSize)
+                const y = math.floor(object['y'] / tileSize)
+                if x >= 0 and x < mapWidth and y >= 0 and y < mapHeight
+                {
+                    collisionData[y][x] = {
+                        type = object['type'],
+                        x = object['x'],
+                        y = object['y'],
+                        width = object['width'],
+                        height = object['height']
+                    }
+                }
+            }
+        }
+        else if sourceLayer['type'] == "objectgroup" and
+            sourceLayer['name'] == "entities"
+        {
+            for const object in sourceLayer['objects']
+            {
+                const x = math.floor((object['x'] - 2) / tileSize)
+                const y = math.floor((object['y'] - 2) / tileSize)
+                if x >= 0 and x < mapWidth and y >= 0 and y < mapHeight
+                {
+                    entityData[y][x] = {
+                        type = object['type'],
+                        name = object['name'],
+                        x = object['x'],
+                        y = object['y'],
+                        width = object['width'],
+                        height = object['height']
+                    }
+                }
+            }
+        }
+    }
+
+    if layers.len == 0
+    {
+        layers.add(makeLayer("layer1"))
+    }
+    layerIndex = 0
+    initialized = true
+    dirty = false
+    status = "loaded"
+}
+
+function addLayer()
+{
+    layers.add(makeLayer("layer" + tostring(layers.len + 1)))
+    layerIndex = layers.len - 1
+    dirty = true
+}
+
+function drawTile(gid, x, y)
+{
+    if gid > 0
+    {
+        const transform = tileTransform(gid)
+        const rect = sourceRect(transform['gid'])
+        var drawX = x
+        if transform['sx'] == -1
+        {
+            drawX += tileSize
+        }
+        micro.gfx.draw(image, drawX, y, rect,
+            transform['rotation'], transform['sx'], transform['sy'])
+    }
+}
+
+function drawCanvas()
+{
+    for const layer in layers
+    {
+        for var y = 0; y < canvasHeight / tileSize; y += 1
+        {
+            const mapY = y + scrollY
+            for var x = 0; x < viewportColumns; x += 1
+            {
+                const mapX = x + scrollX
+                drawTile(layer['data'][mapY][mapX],
+                    x * tileSize, canvasY + y * tileSize)
+            }
+        }
+    }
+
+    for var y = 0; y < canvasHeight / tileSize; y += 1
+    {
+        const mapY = y + scrollY
+        for var x = 0; x < viewportColumns; x += 1
+        {
+            const mapX = x + scrollX
+            const object = collisionData[mapY][mapX]
+            if object
+            {
+                const color = object['type'] == "platform" and [220, 170, 60] or
+                    object['type'] == "stair" and [80, 180, 220] or [220, 70, 70]
+                micro.gfx.rect("fill",
+                    object['x'] - scrollX * tileSize,
+                    canvasY + object['y'] - scrollY * tileSize,
+                    object['width'], object['height'],
+                    color[0], color[1], color[2], 90)
+            }
+        }
+    }
+
+    for var y = 0; y < canvasHeight / tileSize; y += 1
+    {
+        const mapY = y + scrollY
+        for var x = 0; x < viewportColumns; x += 1
+        {
+            const mapX = x + scrollX
+            const object = entityData[mapY][mapX]
+            if object
+            {
+                micro.gfx.rect("fill",
+                    object['x'] - scrollX * tileSize,
+                    canvasY + object['y'] - scrollY * tileSize,
+                    object['width'], object['height'],
+                    100, 220, 120, 255)
+            }
+        }
+    }
+
+    if not micro.keyboard.isDown("i")
+    {
+        for var x = 0; x <= viewportColumns; x += 1
+        {
+            micro.gfx.line(x * tileSize, canvasY, x * tileSize, paletteY,
+                90, 80, 105, 100)
+        }
+        for var y = 0; y <= canvasHeight / tileSize; y += 1
+        {
+            micro.gfx.line(0, canvasY + y * tileSize, 200, canvasY + y * tileSize,
+                90, 80, 105, 100)
+        }
+    }
+
+    const cursorColor = micro.mouse.isDown("right") and 220 or 255
+    micro.gfx.rect("line", (cursorX - scrollX) * tileSize,
+        canvasY + (cursorY - scrollY) * tileSize, tileSize, tileSize,
+        255, 255, cursorColor, 220)
+}
+
+function drawPalette()
+{
+    for var y = 0; y < paletteRows; y += 1
+    {
+        for var x = 0; x < paletteColumns; x += 1
+        {
+            const shade = (x + y) % 2 == 0 and 220 or 150
+            micro.gfx.rect("fill", x * tileSize, paletteY + y * tileSize,
+                tileSize, tileSize, shade, shade, shade, 255)
+        }
+    }
+
+    for var y = 0; y < paletteRows; y += 1
+    {
+        for var x = 0; x < paletteColumns; x += 1
+        {
+            const gid = (paletteScrollY + y) * paletteColumns + x + 1
+            if gid <= 96
+            {
+                drawTile(gid, x * tileSize, paletteY + y * tileSize)
+            }
+        }
+    }
+
+    const selected = selectedTile - 1
+    const selectedRow = math.floor(selected / paletteColumns)
+    if selectedRow >= paletteScrollY and selectedRow < paletteScrollY + paletteRows
+    {
+        micro.gfx.rect("line", paletteSelectionX * tileSize,
+            paletteY + paletteSelectionY * tileSize, tileSize, tileSize,
+            255, 255, 255, 255)
+    }
+}
+
+enter = function()
+{
+    if initialized
+    {
+        return
+    }
+
+    micro.fs.mount('tilemap')
+    image = micro.Image.fromFile("asset/tileset/platformer.png")
+    layers = [makeLayer("layer1")]
+    layerIndex = 0
+    selectedTile = 1
+    paletteSelectionX = 0
+    paletteSelectionY = 0
+    paletteScrollY = 0
+    cursorX = 0
+    cursorY = 0
+    scrollX = 0
+    scrollY = 0
+    collisionData = makeCollisionGrid()
+    collisionMode = false
+    collisionType = "solid"
+    collisionWidth = 1
+    collisionHeight = 1
+    entityData = makeEntityGrid()
+    entityMode = false
+    entityIndex = 0
+    status = "editor"
+    dirty = false
+    initialized = true
+}
+
+export {enter}
+
+export function update(dt)
+{
+    paintAtMouse()
+}
+
+export function draw()
+{
+    //micro.gfx.clear(41, 30, 49)
+    drawCanvas()
+    drawPalette()
+
+    micro.gfx.setColor(255, 255, 255, 255)
+    micro.gfx.print("F1 game  TAB layer  N new  C collision  E entities  S save  I hide grid", 2, 3)
+    micro.gfx.print("L" + tostring(layerIndex + 1) + "/" + tostring(layers.len) +
+        (collisionMode and " " + collisionType + " " + tostring(collisionWidth) +
+            "x" + tostring(collisionHeight) or entityMode and " entity " +
+            entityCatalog[entityIndex]['name'] or " tile " + tostring(selectedTile)) +
+        (dirty and " *" or ""), 2, 193)
+    micro.gfx.print(status, 100, 193)
+}
+
+export function keydown(key)
+{
+    if key == "tab"
+    {
+        layerIndex = (layerIndex + 1) % layers.len
+    }
+    else if key == "n"
+    {
+        addLayer()
+    }
+    else if key == "c"
+    {
+        collisionMode = not collisionMode
+        entityMode = false
+        status = collisionMode and "collision mode" or "tile mode"
+    }
+    else if key == "e"
+    {
+        entityMode = not entityMode
+        collisionMode = false
+        status = entityMode and "entity mode" or "tile mode"
+    }
+    else if key == "t" and collisionMode
+    {
+        collisionType = collisionType == "solid" and "platform" or
+            collisionType == "platform" and "stair" or "solid"
+    }
+    else if key == "t" and entityMode
+    {
+        entityIndex = (entityIndex + 1) % entityCatalog.len
+    }
+    else if key == "[" and collisionMode
+    {
+        collisionWidth = math.max(1, collisionWidth - 1)
+    }
+    else if key == "]" and collisionMode
+    {
+        collisionWidth = math.min(mapWidth, collisionWidth + 1)
+    }
+    else if key == "-" and collisionMode
+    {
+        collisionHeight = math.max(1, collisionHeight - 1)
+    }
+    else if key == "=" and collisionMode
+    {
+        collisionHeight = math.min(mapHeight, collisionHeight + 1)
+    }
+    else if key == "up" and micro.mouse.getY() >= paletteY
+    {
+        paletteScrollY = math.max(0, paletteScrollY - 1)
+        updatePaletteSelection()
+    }
+    else if key == "down" and micro.mouse.getY() >= paletteY
+    {
+        paletteScrollY = math.min(tilesetRows - paletteRows, paletteScrollY + 1)
+        updatePaletteSelection()
+    }
+    else if key == "up" and micro.mouse.getY() >= canvasY and micro.mouse.getY() < paletteY
+    {
+        scrollY = math.max(0, scrollY - 1)
+    }
+    else if key == "down" and micro.mouse.getY() >= canvasY and micro.mouse.getY() < paletteY
+    {
+        scrollY = math.min(mapHeight - canvasHeight / tileSize, scrollY + 1)
+    }
+    else if key == "left" and micro.mouse.getY() >= canvasY and micro.mouse.getY() < paletteY
+    {
+        scrollX = math.max(0, scrollX - 1)
+    }
+    else if key == "right" and micro.mouse.getY() >= canvasY and micro.mouse.getY() < paletteY
+    {
+        scrollX = math.min(mapWidth - viewportColumns, scrollX + 1)
+    }
+    else if key == "s"// and micro.keyboard.isDown("left control", "right control")
+    {
+        save()
+    }
+}
+
+export function mousedown(button)
+{
+    const my = micro.mouse.getY()
+    if my >= paletteY
+    {
+        if not collisionMode and not entityMode
+        {
+            selectPaletteAtMouse()
+        }
+    }
+    else
+    {
+        paintAtMouse()
+    }
+}
+
+export function mouseup(button)
+{
+}

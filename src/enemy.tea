@@ -1,10 +1,11 @@
 import math, random
 
-import "level" as level
+import "src/level" as level
 
-from "sprite" import Sprite
-from "coin" import Coin
-from "player" import Player
+from "src/sprite" import Sprite
+from "src/coin" import Coin
+from "src/player" import Player
+from "src/effect" import Effect
 
 export function filterSolid(item, other)
 {
@@ -43,12 +44,43 @@ export class Enemy
         self.isAttacking = false
         self.health = 3
         self.state = 'idle'
-        self.knockbackForce = 0.8
+        self.knockbackForce = 0.9
         self.isHit = false
         self.hitTimer = 0
         self.hitDuration = 0.18
         self.knockbackDx = 0
         self.knockbackDy = 0
+        self.bloodEffect = {
+            imagePath = "asset/particle_blood.png",
+            spawnRate = 0.01,
+            position = {x = 0, y = 0},
+            velocityRange = {
+                minX = -18,
+                maxX = 18,
+                minY = -24,
+                maxY = -6
+            },
+            lifetimeRange = {
+                min = 0.2,
+                max = 0.45
+            },
+            gravity = {x = 0, y = 18},
+            spread = {x = 2, y = 2},
+            maxParticles = 6,
+            sizeRange = {
+                min = 0.4,
+                max = 0.8
+            },
+            rotationSpeed = {
+                min = -math.pi,
+                max = math.pi
+            },
+            turbulence = {x = 3, y = 3},
+            emissionShape = "circle",
+            emissionRadius = 2,
+            fadeInTime = 0.02,
+            fadeOutTime = 0.2
+        }
         self.behaviorTimer = 0
         self.currentBehavior = 'patrol'
         self.behaviors = {
@@ -139,9 +171,20 @@ export class Enemy
             self.isHit = true
             self.hitTimer = self.hitDuration
 
-            // Apply knockback
+            // Keep the impulse horizontal and make callers that pass a
+            // velocity or other non-zero value behave consistently.
+            if direction < 0
+            {
+                direction = -1
+            }
+            else
+            {
+                direction = 1
+            }
+
             self.knockbackDx = self.knockbackForce * direction
             self.knockbackDy = -0.58
+            Effect.new(self.x + 2, self.y + 2, self.bloodEffect, 0.45, 5)
 
             if self.health <= 0
             {
@@ -253,7 +296,8 @@ export class Enemy
                     }
                     if cols[i]['normal']['x'] != 0
                     {
-                        self.dx = 0 //-self.dx / 2
+                        self.dx = 0
+                        self.knockbackDx = 0
                     }
                 }
             }
@@ -305,6 +349,37 @@ export class Barbarian : Enemy
         self.health = 50
     }
 
+    function loadEvents()
+    {
+        super.loadEvents()
+
+        function attackHit(tag)
+        {
+            const world = level.getWorld()
+            var attackX
+            if self.facing == -1
+            {
+                attackX = self.x - 14
+            }
+            else
+            {
+                attackX = self.x + 4
+            }
+
+            // A rectangle also catches a player standing directly against
+            // the barbarian, where a segment beginning at the front edge can
+            // miss the overlap entirely.
+            const res = world.queryRect(attackX, self.y - 1, 14, 7, filterTarget)
+            if res.len > 0
+            {
+                res[0].hit(self.facing)
+            }
+        }
+
+        self.sprite.onFrame(11, attackHit)
+        self.sprite.onFrame(14, attackHit)
+    }
+
     function onHit()
     {
         self.speed = self.normalSpeed * self.enrageSpeedMultiplier
@@ -340,17 +415,15 @@ export class Dwarf : Enemy
     {
         super.load()
         switch self.name
+        case 'dwarf'
         {
-            case 'dwarf'
-            {
-                self.ox = math.floor(self.sprite.getWidth() / 2) - 2
-                self.oy = math.floor(self.sprite.getHeight() / 2) + 3
-            }
-            case 'dwarf_pickaxe'
-            {
-                self.ox = math.floor(self.sprite.getWidth() / 2) - 2
-                self.oy = math.floor(self.sprite.getHeight() / 2) + 2
-            }
+            self.ox = math.floor(self.sprite.getWidth() / 2) - 2
+            self.oy = math.floor(self.sprite.getHeight() / 2) + 3
+        }
+        case 'dwarf_pickaxe'
+        {
+            self.ox = math.floor(self.sprite.getWidth() / 2) - 2
+            self.oy = math.floor(self.sprite.getHeight() / 2) + 2
         }
         self.px = 2
         self.speed = 28

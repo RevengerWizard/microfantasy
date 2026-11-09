@@ -3,6 +3,9 @@ import math, random
 import "lib/bump" as bump
 import "src/level" as level
 import "src/debug" as debug
+import "src/ui" as ui
+import "src/scene" as scene
+import "src/tilemap" as tilemapEditor
 
 from "src/player" import Player
 from "src/camera" import Camera
@@ -16,6 +19,53 @@ var player
 var debug1 = false
 var debug2 = false
 var mx, my = 0, 0
+
+function updateGame(dt)
+{
+    level.update(dt)
+    camera.update(dt)
+
+    if player.y > 210
+    {
+        const checkpoint = level.getCheckpoint()
+        const world = level.getWorld()
+        player.x = checkpoint[0]
+        player.y = checkpoint[1]
+        player.dx = 0
+        player.dy = 0
+        world.update(player, checkpoint[0], checkpoint[1])
+    }
+
+    mx = micro.mouse.getX()
+    my = micro.mouse.getY()
+
+    debug.setOffset(camera.x, camera.y)
+}
+
+function drawGame()
+{
+    const x = camera.x
+    const y = camera.y
+    level.draw(math.floor(x), math.floor(y))
+    ui.draw()
+
+    if debug1
+    {
+        micro.gfx.print("${mx}, ${my}", mx + 3, my - 5)
+        micro.gfx.pixel(mx, my)
+    }
+
+    debug.draw()
+}
+
+function startEditorGame()
+{
+    level.reset()
+    level.setWorld(bump.newWorld(16))
+    level.loadMap(tilemapEditor.getData())
+    player = Player.new(x, y, "basic_green")
+    scene.change("game")
+}
 
 function micro.load()
 {
@@ -41,6 +91,7 @@ function micro.load()
     const world = bump.newWorld(16)
     level.setWorld(world)
     level.load("tilemap/platform")
+    ui.load()
 
     player = Player.new(x, y, "basic_green")
 
@@ -50,46 +101,43 @@ function micro.load()
         deadZoneWidth = 18,
         deadZoneHeight = 24,
     })
-    camera.follow(player)
+    //camera.follow(player)
 
     music = micro.Source.fromData(
         micro.Data.fromFile("sound/microfantasytheme.ogg"))
     music.setLoop(true)
 
     micro.gfx.setClearColor(41, 30, 49)
+
+    scene.register("game", {
+        update = function(dt) { updateGame(dt) },
+        draw = function() { drawGame() }
+    })
+    scene.register("editor", {
+        enter = tilemapEditor.enter,
+        update = tilemapEditor.update,
+        draw = tilemapEditor.draw,
+        keydown = function(key) {
+            tilemapEditor.keydown(key)
+            if key == "enter"
+            {
+                startEditorGame()
+            }
+        },
+        mousedown = tilemapEditor.mousedown,
+        mouseup = tilemapEditor.mouseup
+    })
+    scene.change("game")
 }
 
 function micro.update(dt)
 {
-    level.update(dt)
-    camera.update(dt)
-
-    if player.y > 210
-    {
-        const world = level.getWorld()
-        player.x = x
-        player.y = y
-        player.dx = 0
-        player.dy = 0
-        world.update(player, x, y)
-    }
-
-    mx = micro.mouse.getX()
-    my = micro.mouse.getY()
-
-    debug.setOffset(camera.x, camera.y)
+    scene.update(dt)
 }
 
 function micro.draw()
 {
-    const x = camera.x
-    const y = camera.y
-    level.draw(math.floor(x), math.floor(y))
-
-    micro.gfx.print("${mx}, ${my}", mx + 3, my - 5)
-    micro.gfx.pixel(mx, my)
-
-    debug.draw()
+    scene.draw()
 }
 
 function micro.quit()
@@ -106,6 +154,18 @@ function micro.textinput(text)
 
 function micro.keydown(key)
 {
+    if key == "f1"
+    {
+        if scene.getName() == "editor"
+        {
+            scene.change("game")
+        }
+        else
+        {
+            scene.change("editor")
+        }
+    }
+
     if key == 'escape'
     {
         micro.event.quit()
@@ -128,4 +188,23 @@ function micro.keydown(key)
         debug2 = not debug2
         debug.setFocused(debug2)
     }
+    if key == 'p'
+    {
+        ui.damage(0.5)
+    }
+    if key == 'o'
+    {
+        ui.collect()
+    }
+    scene.keydown(key)
+}
+
+function micro.mousedown(button)
+{
+    scene.mousedown(button)
+}
+
+function micro.mouseup(button)
+{
+    scene.mouseup(button)
 }

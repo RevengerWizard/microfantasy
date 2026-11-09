@@ -1,0 +1,62 @@
+import math
+
+const maxHearts = 3
+var hearts = maxHearts
+var heartFull
+var heartHalf
+var heartEmpty
+var xp = 0
+
+export function load()
+{
+    heartFull = micro.Image.fromFile("asset/ui/heart_full.png")
+    heartHalf = micro.Image.fromFile("asset/ui/heart_half.png")
+    heartEmpty = micro.Image.fromFile("asset/ui/heart_empty.png")
+}
+
+export function reset()
+{
+    hearts = maxHearts
+}
+
+export function setHearts(value)
+{
+    hearts = math.max(0, math.min(maxHearts, value))
+}
+
+export function getHearts()
+{
+    return hearts
+}
+
+export function damage(amount=1)
+{
+    setHearts(hearts - amount)
+}
+
+export function collect(amount=1)
+{
+    xp += amount
+}
+
+export function draw(x=4, y=4)
+{
+    for var i = 0; i < maxHearts; i += 1
+    {
+        var image = heartEmpty
+        const value = hearts - i
+
+        if value >= 1
+        {
+            image = heartFull
+        }
+        else if value >= 0.5
+        {
+            image = heartHalf
+        }
+
+        micro.gfx.draw(image, x + i * (heartFull.getWidth() + 1), y)
+    }
+
+    micro.gfx.print("x" + tostring(xp), 182, 4)
+}

@@ -1,4 +1,4 @@
-import "../lib/ase" as ase
+import "lib/ase" as ase
 
 function setPixels(width, height, image, buf, offx=0, offy=0)
 {
@@ -21,12 +21,10 @@ function setPixels(width, height, image, buf, offx=0, offy=0)
 function getDirection(dir)
 {
     switch dir
-    {
-        case 0 { return "forward" }
-        case 1 { return "reverse" }
-        case 2 { return "pingpong" }
-        case 3 { return "pingpong" }
-    }
+    case 0 { return "forward" }
+    case 1 { return "reverse" }
+    case 2 { return "pingpong" }
+    case 3 { return "pingpong" }
 }
 
 export class Sprite

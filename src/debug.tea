@@ -37,7 +37,7 @@ export function setOffset(x, y)
     offy = y
 }
 
-import "helper" as helper
+import "src/helper" as helper
 
 function prompt(text)
 {
@@ -64,10 +64,25 @@ function prompt(text)
             return error("x and y must be numbers")
         }
 
-        import "level" as level
+        import "src/level" as level
         level.spawnEntity(x + offx, y + offy, type, name)
 
         print("Spawned entity: ${name} (${type}) at (${x}, ${y})")
+    }
+    else if command == "load"
+    {
+        const name = parts[1]
+        if not name
+        {
+            return error("usage: /load <name>")
+        }
+
+        import "src/level" as level
+        from "tilemap/${name}" import data
+        import "src/tilemap" as tilemapEditor
+        tilemapEditor.loadData(data)
+        level.loadData(data, false)
+        print("Loaded tilemap: ${name}")
     }
     else
     {

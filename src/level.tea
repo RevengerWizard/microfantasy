@@ -1,6 +1,8 @@
 import math
 
-import "../lib/sti" as sti
+import "lib/bump" as bump
+import "lib/sti" as sti
+import "lib/sti/utils" as utils
 
 const entities = []
 var player
@@ -35,13 +37,14 @@ export function filter(item, other)
 
 export const gravity = 9.8
 
-from "enemy" import Dwarf, Oldman, Barbarian
-from "wizard" import Wizard
-from "potion" import Potion
-from "chest" import Chest
-from "key" import Key
-from "coin" import Coin
-from "weapon" import Sword, Axe, Bow
+from "src/enemy" import Dwarf, Oldman, Barbarian
+from "src/wizard" import Wizard
+from "src/potion" import Potion
+from "src/chest" import Chest
+from "src/key" import Key
+from "src/coin" import Coin
+from "src/weapon" import Sword, Axe, Bow
+from "src/torch" import Torch
 
 const entityMap = {
     wizard = Wizard,
@@ -54,10 +57,31 @@ const entityMap = {
     key = Key,
     bow = Bow,
     sword = Sword,
-    axe = Axe
+    axe = Axe,
+    torch = Torch
 }
 
-function spawn()
+var checkpointX = 80
+var checkpointY = 55
+
+export function setCheckpoint(x, y)
+{
+    checkpointX = x
+    checkpointY = y
+}
+
+function resetCheckpoint()
+{
+    checkpointX = 80
+    checkpointY = 55
+}
+
+export function getCheckpoint()
+{
+    return [checkpointX, checkpointY]
+}
+
+function spawn(addDefaults=false)
 {
     var objects
     for const layer in tilemap.layers
@@ -68,31 +92,58 @@ function spawn()
             break
         }
     }
-    if not objects { return }
-
-    for const v in objects
+    if objects
     {
-        const ent = entityMap.get(v['type'])
-        if ent
+        for const v in objects
         {
-            const x = math.round(v['x'] + v['width'] / 2)
-            const y = math.round(v['y'] + v['height'] / 2)
-            const obj = ent.new(x, y, v['name'])
+            const ent = entityMap.get(v['type'])
+            if ent
+            {
+                const x = math.round(v['x'] + v['width'] / 2)
+                const y = math.round(v['y'] + v['height'] / 2)
+                const obj = ent.new(x, y, v['name'])
+            }
         }
     }
 
-    Bow.new(130, 70, "bow")
-    Sword.new(105, 70, "sword")
-    Axe.new(95, 70, "axe")
-    Wizard.new(35, 40, "wizard_red_staff")
+    if addDefaults
+    {
+        Bow.new(130, 70, "bow")
+        Sword.new(105, 70, "sword")
+        Axe.new(95, 70, "axe")
+        Wizard.new(35, 40, "wizard_red_staff")
+    }
 }
 
-export function load(name)
+export function load(name, addDefaults=true)
 {
-    from "../${name}" import data
-    tilemap = sti.load(data)
+    const hasPlayer = player != nil
+    if hasPlayer
+    {
+        world.remove(player)
+    }
+    for var i = entities.len - 1; i >= 0; i -= 1
+    {
+        world.remove(entities[i])
+        entities.delete(i)
+    }
+
+    world = bump.newWorld(16)
+    from "${name}" import data
+    resetCheckpoint()
+    tilemap = sti.load(utils.deepcopy(data))
     sti.plugin.bump_init(tilemap, world)
-    spawn()
+    spawn(addDefaults)
+
+    if hasPlayer
+    {
+        const checkpoint = getCheckpoint()
+        player.x = checkpoint[0]
+        player.y = checkpoint[1]
+        player.dx = 0
+        player.dy = 0
+        world.add(player, player.x, player.y, player.w, player.h)
+    }
 }
 
 export function update(dt)
@@ -135,6 +186,57 @@ export function addEntity(ent)
 export function addPlayer(ent)
 {
     player = ent
+}
+
+export function reset()
+{
+    for var i = entities.len - 1; i >= 0; i -= 1
+    {
+        const ent = entities[i]
+        world.remove(ent)
+        entities.delete(i)
+    }
+
+    if player
+    {
+        world.remove(player)
+        player = nil
+    }
+}
+
+export function loadData(data, addDefaults=false)
+{
+    const hasPlayer = player != nil
+    if hasPlayer
+    {
+        world.remove(player)
+    }
+    for var i = entities.len - 1; i >= 0; i -= 1
+    {
+        world.remove(entities[i])
+        entities.delete(i)
+    }
+
+    world = bump.newWorld(16)
+    resetCheckpoint()
+    tilemap = sti.load(utils.deepcopy(data))
+    sti.plugin.bump_init(tilemap, world)
+    spawn(addDefaults)
+
+    if hasPlayer
+    {
+        const checkpoint = getCheckpoint()
+        player.x = checkpoint[0]
+        player.y = checkpoint[1]
+        player.dx = 0
+        player.dy = 0
+        world.add(player, player.x, player.y, player.w, player.h)
+    }
+}
+
+export function loadMap(data)
+{
+    loadData(data)
 }
 
 export function getPlayer()
